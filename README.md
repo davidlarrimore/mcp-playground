@@ -48,9 +48,10 @@ make nuke
 
 > The reference MCP images ship as stdio servers. Compose builds lightweight wrappers (time-bridge, filesystem-bridge, memory-bridge) using `supergateway` to expose Streamable HTTP endpoints.
 
-## Custom Email service
+## Custom Email service (now MCP-aware)
 - Container: `email-mcp`
-- HTTP: `POST /send`
+- MCP endpoint: `http://localhost:${EMAIL_MCP_PORT:-2004}/mcp` (Streamable HTTP via supergateway)
+- HTTP convenience API (unchanged): `POST /send`
 - Health: `GET /healthz`
 - Env: `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM_DEFAULT`, `ATTACH_ROOT`, `LOG_LEVEL`
 - Volumes: mounts `./demo-data` read-only at `/attachments` so you can attach scenario files.
