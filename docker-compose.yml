@@ -76,6 +76,23 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:main
+    container_name: mcpo
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${MCPO_PORT:-2010}:8000"
+    command: ["--config", "/app/config.json", "--port", "8000"]
+    volumes:
+      - ./mcpo-config.json:/app/config.json:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   email-mcp:
     build:
       context: ./email-mcp

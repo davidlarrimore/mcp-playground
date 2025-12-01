@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "time": {
+      "type": "streamable-http",
+      "url": "http://time-mcp:8000/mcp"
+    },
+    "filesystem": {
+      "type": "streamable-http",
+      "url": "http://filesystem-mcp:8000/mcp"
+    },
+    "memory": {
+      "type": "streamable-http",
+      "url": "http://memory-mcp:8000/mcp"
+    },
+    "email": {
+      "type": "streamable-http",
+      "url": "http://email-mcp:8000/mcp"
+    }
+  }
+}

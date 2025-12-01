@@ -6,6 +6,7 @@ This repo spins up the Part 2 demo services from `demo-tech-mapping.md` on a sin
 - MailHog (SMTP sink + web UI) on host ports `2005` (UI) / `2025` (SMTP)
 - Reference MCP servers (container names): `time-mcp`, `filesystem-mcp`, `memory-mcp`
 - Custom Email HTTP service: `email-mcp` (POST `/send`)
+- MCPO OpenAPI proxy that wraps the MCP servers
 - Shared Docker network: `mcp-net`
 - Shared data mount for attachments and filesystem demo data: `./demo-data`
 
@@ -43,6 +44,7 @@ make nuke
 - Memory MCP: `http://localhost:${MEMORY_MCP_PORT:-2003}`
 - Email service: `http://localhost:${EMAIL_MCP_PORT:-2004}`
 - MailHog UI: `http://localhost:${MAILHOG_WEB_PORT:-2005}`
+- MCPO OpenAPI proxy: `http://localhost:${MCPO_PORT:-2010}`
 
 > The reference MCP images ship as stdio servers. Compose builds lightweight wrappers (time-bridge, filesystem-bridge, memory-bridge) using `supergateway` to expose Streamable HTTP endpoints.
 
@@ -89,6 +91,13 @@ make email-local-stop
 - `make email-local` – run email service in local venv
 - `make email-local-stop` – stop the local email process
 
+## MCPO OpenAPI proxy (wraps all MCP servers)
+- Container: `mcpo`
+- Base URL: `http://localhost:${MCPO_PORT:-2010}`
+- Routes (per tool): `/time`, `/filesystem`, `/memory`, `/email` with generated OpenAPI docs at `/<tool>/docs` (e.g., `http://localhost:2010/time/docs`) and schemas at `/<tool>/openapi.json`.
+- How it connects: proxies the Streamable HTTP endpoints of `time-mcp`, `filesystem-mcp`, `memory-mcp`, and `email-mcp` on the same Docker network.
+- Open WebUI integration: add an **OpenAPI** server pointing to `http://localhost:2010/time/openapi.json` (or `http://mcpo:8000/time/openapi.json` if Open WebUI runs on `mcp-net`). Repeat per tool if you want individual OpenAPI servers.
+
 ## Notes for Open WebUI wiring
 - Ensure Open WebUI joins `mcp-net` or can reach `localhost` on the mapped ports.
 - Add tool servers in Open WebUI pointing at the hostnames/ports above.
@@ -102,6 +111,7 @@ make email-local-stop
     - `memory` → `http://memory-mcp:8000/mcp` (or `http://host.docker.internal:2003/mcp`)
     - `email` → `http://email-mcp:8000/mcp` (or `http://host.docker.internal:2004/mcp`)
 - Click “Test connection” for each; you should see the tool list returned.
+- To use the OpenAPI proxy instead, add OpenAPI servers pointing at `http://localhost:2010/<tool>/openapi.json` (or `http://mcpo:8000/<tool>/openapi.json` on `mcp-net`), where `<tool>` is `time`, `filesystem`, `memory`, or `email`.
 
 ### Open WebUI connection fields (per tool)
 - Type: `MCP Streamable HTTP`
@@ -122,8 +132,12 @@ Run these after `make up`:
   ```bash
   curl http://localhost:2001/healthz
   curl http://localhost:2002/healthz
-  curl http://localhost:2003/healthz
-  curl http://localhost:2004/healthz
+curl http://localhost:2003/healthz
+curl http://localhost:2004/healthz
+```
+- MCPO OpenAPI docs (time tool):
+  ```bash
+  curl -I http://localhost:2010/time/docs
   ```
 - Filesystem container sees demo data:
   ```bash
