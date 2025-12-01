@@ -1,0 +1,97 @@
+version: "3.9"
+
+networks:
+  mcp-net:
+    driver: bridge
+
+volumes:
+  memory-data:
+
+services:
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${MAILHOG_WEB_PORT:-2005}:8025"
+      - "${MAILHOG_SMTP_PORT:-2025}:1025"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  time-mcp:
+    image: mcp/time:latest
+    container_name: time-mcp
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${TIME_MCP_PORT:-2001}:8000"
+    command: ["--local-timezone", "${LOCAL_TIMEZONE:-America/New_York}"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  filesystem-mcp:
+    image: mcp/filesystem:latest
+    container_name: filesystem-mcp
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${FILESYSTEM_MCP_PORT:-2002}:8000"
+    command: ["${FILESYSTEM_ROOT:-/demo-data}"]
+    volumes:
+      - ./demo-data:${FILESYSTEM_ROOT:-/demo-data}:rw
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  memory-mcp:
+    image: mcp/memory:latest
+    container_name: memory-mcp
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${MEMORY_MCP_PORT:-2003}:8000"
+    environment:
+      MEMORY_FILE_PATH: /data/memory.json
+    volumes:
+      - memory-data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  email-mcp:
+    build:
+      context: ./email-mcp
+    container_name: email-mcp
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${EMAIL_MCP_PORT:-2004}:8000"
+    environment:
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM_DEFAULT: ${SMTP_FROM_DEFAULT:-noreply@example.test}
+      ATTACH_ROOT: ${ATTACH_ROOT:-/attachments}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./demo-data:${ATTACH_ROOT:-/attachments}:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
