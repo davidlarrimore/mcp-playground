@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import anyio
 import pandas as pd
@@ -129,7 +129,7 @@ async def read_file(
     max_bytes: int = 2_000_000,
     parse_excel: bool = True,
     header_row: Optional[int] = None,
-    sheet: Optional[str] = None,
+    sheet: Optional[Union[str, int]] = None,
 ) -> dict:
     """
     Generic file reader. Text files are returned as text. Excel files can be parsed to markdown.
@@ -162,13 +162,13 @@ async def read_file(
 @server.tool()
 async def read_excel_table(
     path: str,
-    sheet: Optional[str] = None,
+    sheet: Optional[Union[str, int]] = None,
     header_row: Optional[int] = None,
     max_rows: int = 1000,
     drop_unnamed: bool = True,
 ) -> dict:
     """
-    Parse an Excel sheet into structured rows and markdown.
+    Parse an Excel sheet (by name or index) into structured rows and markdown.
     """
 
     full = _resolve_path(path)
@@ -176,12 +176,34 @@ async def read_excel_table(
         raise ValueError(f"Path is a directory: {full}")
 
     def _parse() -> dict:
-        sheet_name = sheet if sheet is not None else 0
-        df_raw = pd.read_excel(full, sheet_name=sheet_name, header=None)
+        # Validate the requested sheet against available names/indices to give clearer errors.
+        xls = pd.ExcelFile(full)
+        available = xls.sheet_names
+
+        if sheet is None:
+            sheet_name = available[0] if available else 0
+        elif isinstance(sheet, int):
+            if sheet < 0 or sheet >= len(available):
+                raise ValueError(
+                    f"Sheet index {sheet} out of range. Available sheets: {available}"
+                )
+            sheet_name = sheet
+        elif isinstance(sheet, str):
+            if sheet not in available:
+                raise ValueError(
+                    f"Worksheet named '{sheet}' not found. Available sheets: {available}"
+                )
+            sheet_name = sheet
+        else:
+            raise ValueError(
+                f"Unsupported sheet type {type(sheet)}. Provide a name or index."
+            )
+
+        df_raw = pd.read_excel(xls, sheet_name=sheet_name, header=None)
         hdr = header_row if header_row is not None else _guess_header_row(df_raw)
 
         logger.debug("Using header row %s for %s", hdr, full)
-        df = pd.read_excel(full, sheet_name=sheet_name, header=hdr)
+        df = pd.read_excel(xls, sheet_name=sheet_name, header=hdr)
 
         if drop_unnamed:
             df = df[[c for c in df.columns if not str(c).startswith("Unnamed")]]
