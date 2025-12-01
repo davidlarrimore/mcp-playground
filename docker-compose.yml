@@ -24,14 +24,14 @@ services:
         max-file: "3"
 
   time-mcp:
-    image: mcp/time:latest
+    build:
+      context: ./time-bridge
     container_name: time-mcp
     restart: unless-stopped
     networks:
       - mcp-net
     ports:
       - "${TIME_MCP_PORT:-2001}:8000"
-    command: ["--local-timezone", "${LOCAL_TIMEZONE:-America/New_York}"]
     logging:
       driver: "json-file"
       options:
@@ -39,14 +39,16 @@ services:
         max-file: "3"
 
   filesystem-mcp:
-    image: mcp/filesystem:latest
+    build:
+      context: ./filesystem-bridge
     container_name: filesystem-mcp
     restart: unless-stopped
     networks:
       - mcp-net
     ports:
       - "${FILESYSTEM_MCP_PORT:-2002}:8000"
-    command: ["${FILESYSTEM_ROOT:-/demo-data}"]
+    environment:
+      FILESYSTEM_ROOT: ${FILESYSTEM_ROOT:-/demo-data}
     volumes:
       - ./demo-data:${FILESYSTEM_ROOT:-/demo-data}:rw
     logging:
@@ -56,7 +58,8 @@ services:
         max-file: "3"
 
   memory-mcp:
-    image: mcp/memory:latest
+    build:
+      context: ./memory-bridge
     container_name: memory-mcp
     restart: unless-stopped
     networks:

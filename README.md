@@ -15,7 +15,7 @@ This repo spins up the Part 2 demo services from `demo-tech-mapping.md` on a sin
 cp .env.example .env
 ```
 
-2) Start the stack:
+2) Build and start the stack (bridging stdio→HTTP images are built locally):
 ```bash
 make up
 ```
@@ -44,7 +44,7 @@ make nuke
 - Email service: `http://localhost:${EMAIL_MCP_PORT:-2004}`
 - MailHog UI: `http://localhost:${MAILHOG_WEB_PORT:-2005}`
 
-> The reference MCP images currently ship as stdio servers. Exposing them on ports allows you to front them with your preferred HTTP adapter; adjust commands if you use an updated HTTP-capable tag.
+> The reference MCP images ship as stdio servers. Compose builds lightweight wrappers (time-bridge, filesystem-bridge, memory-bridge) using `supergateway` to expose Streamable HTTP endpoints.
 
 ## Custom Email service
 - Container: `email-mcp`
@@ -58,7 +58,7 @@ Example request:
 curl -X POST http://localhost:2004/send \
   -H "Content-Type: application/json" \
   -d '{
-    "to": ["ops@example.test"],
+    "to": ["ops@example.com"],
     "subject": "Week 8 invite",
     "body_text": "See you Thursday at noon ET.",
     "attachments": [{"path": "CourseOutlineWeek8.pdf", "filename": "Week8Outline.pdf"}]
@@ -92,7 +92,54 @@ make email-local-stop
 ## Notes for Open WebUI wiring
 - Ensure Open WebUI joins `mcp-net` or can reach `localhost` on the mapped ports.
 - Add tool servers in Open WebUI pointing at the hostnames/ports above.
-- LiteLLM continues to run on port `7777` (external to this compose file).
+## Open WebUI setup
+- Network: either (a) run Open WebUI on the host and use localhost ports above, or (b) attach its container to `mcp-net` so it can resolve `time-mcp`, `filesystem-mcp`, `memory-mcp`, `email-mcp` by name. Example: `docker network connect mcp-net <openwebui_container>`.
+- In Open WebUI → Settings → Tools (External Tools) → Add Tool Server:
+  - Type: `MCP (Streamable HTTP)`
+  - Name/URL pairs:
+    - `time` → `http://time-mcp:8000/mcp` (or `http://host.docker.internal:2001/mcp`)
+    - `filesystem` → `http://filesystem-mcp:8000/mcp` (or `http://host.docker.internal:2002/mcp`)
+    - `memory` → `http://memory-mcp:8000/mcp` (or `http://host.docker.internal:2003/mcp`)
+    - `email` → `http://email-mcp:8000/mcp` (or `http://host.docker.internal:2004/mcp`)
+- Click “Test connection” for each; you should see the tool list returned.
+
+### Open WebUI connection fields (per tool)
+- Type: `MCP Streamable HTTP`
+- URL:
+  - If Open WebUI is on the host: `http://localhost:<port>/mcp` (2001/2002/2003/2004)
+  - If Open WebUI is in Docker but **not** on `mcp-net`: `http://host.docker.internal:<port>/mcp`
+  - If Open WebUI is on `mcp-net`: `http://time-mcp:8000/mcp`, `http://filesystem-mcp:8000/mcp`, `http://memory-mcp:8000/mcp`, `http://email-mcp:8000/mcp`
+- Auth: None (leave blank)
+- Headers: leave empty
+- ID: optional (Open WebUI will generate)
+- Name: any short name you prefer (e.g., `time`, `filesystem`, `memory`, `email`)
+- Description: optional
+- Function Name Filter List: leave empty unless you need to hide functions
+
+## Quick verification checks
+Run these after `make up`:
+- Health endpoints:
+  ```bash
+  curl http://localhost:2001/healthz
+  curl http://localhost:2002/healthz
+  curl http://localhost:2003/healthz
+  curl http://localhost:2004/healthz
+  ```
+- Filesystem container sees demo data:
+  ```bash
+  docker compose --env-file .env exec filesystem-mcp ls /demo-data
+  ```
+- Memory persistence path is mounted:
+  ```bash
+  docker compose --env-file .env exec memory-mcp ls /data
+  ```
+- Email send path (hits MailHog):
+  ```bash
+  curl -X POST http://localhost:2004/send \
+    -H "Content-Type: application/json" \
+    -d '{"to":["ops@example.com"],"subject":"Ping","body_text":"hello"}'
+  ```
+  Then open MailHog UI (`http://localhost:2005`) and confirm the message appears.
 
 ## Debugging tips
 - Check service logs: `docker compose --env-file .env logs <service> -f`
