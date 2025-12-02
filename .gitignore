@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 /email-mcp/.python-version
 /email-mcp/__pycache__/
+docs/*

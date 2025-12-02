@@ -15,6 +15,22 @@
     "email": {
       "type": "streamable-http",
       "url": "http://email-mcp:8000/mcp"
+    },
+    "excel": {
+      "type": "streamable-http",
+      "url": "http://excel-mcp:8000/mcp"
+    },
+    "word": {
+      "type": "streamable-http",
+      "url": "http://word-mcp:8000/mcp"
+    },
+    "pdf": {
+      "type": "streamable-http",
+      "url": "http://pdf-mcp:8000/mcp"
+    },
+    "analytics": {
+      "type": "streamable-http",
+      "url": "http://analytics-mcp:8000/mcp"
     }
   }
 }

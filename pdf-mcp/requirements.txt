@@ -1,0 +1,2 @@
+fastmcp>=2.13.2
+weasyprint>=60.0

@@ -1,0 +1,4 @@
+fastmcp>=2.13.2
+pandas>=2.0.0
+matplotlib>=3.8.0
+openpyxl>=3.1.0
