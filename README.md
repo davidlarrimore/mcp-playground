@@ -7,6 +7,7 @@ This repo spins up the Part 2 demo services from `demo-tech-mapping.md` on a sin
 - Reference MCP servers (container names): `time-mcp`, `filesystem-mcp`, `memory-mcp`
 - Custom Email HTTP service: `email-mcp` (POST `/send`)
 - MCPO OpenAPI proxy that wraps the MCP servers
+- FastMCP 2.0 powering the custom MCP interfaces (bridged to Streamable HTTP)
 - Shared Docker network: `mcp-net`
 - Shared data mount for attachments and filesystem files: `./docs`
 
@@ -49,6 +50,7 @@ make nuke
 > The reference MCP images ship as stdio servers. Compose builds lightweight wrappers (time-bridge, filesystem-bridge, memory-bridge) using `supergateway` to expose Streamable HTTP endpoints.
 
 ## Custom Email service (now MCP-aware)
+- Built on FastMCP 2.0 (stdio tools bridged to Streamable HTTP via `supergateway` at `/mcp`)
 - Container: `email-mcp`
 - MCP endpoint: `http://localhost:${EMAIL_MCP_PORT:-2004}/mcp` (Streamable HTTP via supergateway)
 - HTTP convenience API (unchanged): `POST /send`
@@ -70,7 +72,7 @@ curl -X POST http://localhost:2004/send \
 ```
 
 ## Local (venv) email service
-Run the email service without Docker (uses `.env` if present):
+Run the email service without Docker (uses `.env` if present). Requires Python >=3.10 for FastMCP 2.x; set `PYTHON_BIN` if you need to point at a specific interpreter:
 ```bash
 make email-local
 ```

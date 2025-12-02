@@ -5,7 +5,7 @@ from typing import List, Optional, Union
 from typing_extensions import Annotated
 
 from fastapi import HTTPException
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from pydantic import EmailStr
 
 from email_mcp.server import ATTACH_ROOT, Attachment, SendEmailRequest, _send_email
@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("email-mcp-server")
 
-server = FastMCP("email-mcp")
+mcp = FastMCP("email-mcp")
 
 
 def _normalize_attachment(item: object) -> Attachment:
@@ -62,7 +62,7 @@ def _normalize_attachment(item: object) -> Attachment:
     )
 
 
-@server.tool()
+@mcp.tool
 async def send_email(
     to: List[EmailStr],
     subject: str,
@@ -108,4 +108,4 @@ async def send_email(
 
 
 if __name__ == "__main__":
-    server.run()
+    mcp.run()

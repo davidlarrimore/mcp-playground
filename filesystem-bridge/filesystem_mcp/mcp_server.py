@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 
 import anyio
 import pandas as pd
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -22,7 +22,7 @@ ROOT = Path(os.getenv("FILESYSTEM_ROOT", "/docs")).resolve()
 server = FastMCP("filesystem-mcp")
 
 
-@server.tool()
+@server.tool
 async def list_allowed_directories() -> List[str]:
     """
     Return the root directory that this server allows access to.
@@ -31,7 +31,7 @@ async def list_allowed_directories() -> List[str]:
     return [str(ROOT)]
 
 
-@server.tool()
+@server.tool
 async def list_directory(path: str = ".") -> List[dict]:
     """
     Alias for list_dir (kept for client compatibility).
@@ -108,7 +108,7 @@ def _guess_header_row(df_raw: pd.DataFrame, sample_rows: int = 25) -> int:
     return int(best_row)
 
 
-@server.tool()
+@server.tool
 async def list_dir(path: str = ".") -> List[dict]:
     """
     List files and directories under the given path (relative to FILESYSTEM_ROOT).
@@ -136,7 +136,7 @@ async def list_dir(path: str = ".") -> List[dict]:
     return await anyio.to_thread.run_sync(_scan)
 
 
-@server.tool()
+@server.tool
 async def read_text(path: str, encoding: str = "utf-8", max_bytes: int = 2_000_000) -> str:
     """
     Read a text file (relative to FILESYSTEM_ROOT) with safe size limits.
@@ -155,7 +155,7 @@ async def read_text(path: str, encoding: str = "utf-8", max_bytes: int = 2_000_0
     return await anyio.to_thread.run_sync(_read)
 
 
-@server.tool()
+@server.tool
 async def read_file(
     path: str,
     encoding: str = "utf-8",
@@ -192,7 +192,7 @@ async def read_file(
     return {"type": "text", "path": str(full), "text": text}
 
 
-@server.tool()
+@server.tool
 async def create_file(
     path: str,
     content_base64: Optional[str] = None,
@@ -245,7 +245,7 @@ async def create_file(
     return await anyio.to_thread.run_sync(_write)
 
 
-@server.tool()
+@server.tool
 async def read_excel_table(
     path: str,
     sheet: Optional[Union[str, int]] = None,
