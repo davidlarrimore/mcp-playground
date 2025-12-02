@@ -48,9 +48,10 @@ services:
     ports:
       - "${FILESYSTEM_MCP_PORT:-2002}:8000"
     environment:
-      FILESYSTEM_ROOT: ${FILESYSTEM_ROOT:-/demo-data}
+      FILESYSTEM_ROOT: ${FILESYSTEM_ROOT:-/docs}
+      FS_BASE_DIRECTORY: ${FILESYSTEM_ROOT:-/docs}
     volumes:
-      - ./demo-data:${FILESYSTEM_ROOT:-/demo-data}:rw
+      - ./docs:${FILESYSTEM_ROOT:-/docs}:rw
     logging:
       driver: "json-file"
       options:
@@ -109,7 +110,7 @@ services:
       ATTACH_ROOT: ${ATTACH_ROOT:-/attachments}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
-      - ./demo-data:${ATTACH_ROOT:-/attachments}:ro
+      - ./docs:${ATTACH_ROOT:-/attachments}:ro
     logging:
       driver: "json-file"
       options:

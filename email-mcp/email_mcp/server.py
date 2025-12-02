@@ -8,6 +8,8 @@ from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, EmailStr, Field
+from pydantic import BeforeValidator
+from typing_extensions import Annotated
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -29,13 +31,46 @@ class Attachment(BaseModel):
     )
 
 
+def _normalize_attachment_input(value: object) -> Attachment:
+    """
+    Accept Attachment, dict, or string (absolute or relative) and coerce to Attachment.
+    Absolute paths must live under ATTACH_ROOT; relative paths are forced to posix form.
+    """
+    if isinstance(value, Attachment):
+        return value
+    if isinstance(value, str):
+        path_obj = Path(value)
+        if path_obj.is_absolute():
+            try:
+                cleaned = str(path_obj.resolve().relative_to(ATTACH_ROOT))
+            except ValueError as exc:
+                raise ValueError(
+                    f"Attachment path must be under {ATTACH_ROOT}: {value}"
+                ) from exc
+        else:
+            cleaned = path_obj.as_posix().lstrip("/")
+        return Attachment(path=cleaned)
+    if isinstance(value, dict):
+        data = dict(value)
+        if "path" in data and isinstance(data["path"], str):
+            data["path"] = Path(data["path"]).as_posix().lstrip("/")
+        return Attachment(**data)
+    raise TypeError("attachments must be provided as strings or objects with a path")
+
+
+AttachmentInput = Annotated[Attachment, BeforeValidator(_normalize_attachment_input)]
+
+
 class SendEmailRequest(BaseModel):
     to: List[EmailStr]
     cc: List[EmailStr] = []
     subject: str
     body_text: Optional[str] = None
     body_html: Optional[str] = None
-    attachments: List[Attachment] = []
+    attachments: List[AttachmentInput] = Field(
+        default_factory=list,
+        description="Attachments as path strings or objects (path, optional filename) under ATTACH_ROOT",
+    )
 
     def require_body(self) -> None:
         if not self.body_text and not self.body_html:

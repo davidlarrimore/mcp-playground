@@ -8,7 +8,7 @@ This repo spins up the Part 2 demo services from `demo-tech-mapping.md` on a sin
 - Custom Email HTTP service: `email-mcp` (POST `/send`)
 - MCPO OpenAPI proxy that wraps the MCP servers
 - Shared Docker network: `mcp-net`
-- Shared data mount for attachments and filesystem demo data: `./demo-data`
+- Shared data mount for attachments and filesystem files: `./docs`
 
 ## Quickstart
 1) Copy env defaults and tweak ports/paths if needed:
@@ -54,7 +54,8 @@ make nuke
 - HTTP convenience API (unchanged): `POST /send`
 - Health: `GET /healthz`
 - Env: `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM_DEFAULT`, `ATTACH_ROOT`, `LOG_LEVEL`
-- Volumes: mounts `./demo-data` read-only at `/attachments` so you can attach scenario files.
+- Volumes: mounts `./docs` read-only at `/attachments` so you can attach scenario files.
+- Attachments: pass objects with a `path` (relative to `/attachments`); plain strings work too, but must resolve under `/attachments` or you’ll get a 400. Example `{"path": "bp_crossings_central.xlsx"}`.
 
 Example request:
 ```bash
@@ -79,8 +80,10 @@ make email-local-stop
 ```
 
 ## Filesystem + attachments
-- Place demo documents under `demo-data/`. Files are available inside containers at `${FILESYSTEM_ROOT}` (default `/demo-data`) and the email service at `${ATTACH_ROOT}` (default `/attachments`).
-- Filesystem MCP is invoked with the allowed path set to `${FILESYSTEM_ROOT}` to avoid escaping the demo directory.
+- Place documents under `docs/`. Files are available inside containers at `${FILESYSTEM_ROOT}` (default `/docs`) and the email service at `${ATTACH_ROOT}` (default `/attachments`).
+- Filesystem MCP now uses the upstream [`@cyanheads/filesystem-mcp-server`](https://github.com/cyanheads/filesystem-mcp-server) wrapped with `supergateway`, restricted to `${FILESYSTEM_ROOT}` to avoid escaping the host directory.
+- Core tools (see upstream docs for full schemas): `list_files`, `read_file`, `write_file`, `update_file`, `delete_file`, `delete_directory`, `create_directory`, `move_path`, `copy_path`, plus `set_filesystem_default` for session-relative paths. `write_file` overwrites or creates text files under the root; combine with `copy_path` if you need to duplicate existing binaries.
+- The container initializes the default filesystem path to `${FILESYSTEM_ROOT}`, so relative paths work out of the box through MCPO/Open WebUI.
 
 ## Make targets
 - `make up` – start all services
@@ -98,6 +101,7 @@ make email-local-stop
 - Routes (per tool): `/time`, `/filesystem`, `/memory`, `/email` with generated OpenAPI docs at `/<tool>/docs` (e.g., `http://localhost:2010/time/docs`) and schemas at `/<tool>/openapi.json`.
 - How it connects: proxies the Streamable HTTP endpoints of `time-mcp`, `filesystem-mcp`, `memory-mcp`, and `email-mcp` on the same Docker network.
 - Open WebUI integration: add an **OpenAPI** server pointing to `http://localhost:2010/time/openapi.json` (or `http://mcpo:8000/time/openapi.json` if Open WebUI runs on `mcp-net`). Repeat per tool if you want individual OpenAPI servers.
+- Filesystem endpoint note: after swapping to `@cyanheads/filesystem-mcp-server`, MCPO still exposes it at `/filesystem` (e.g., `http://localhost:2010/filesystem/docs`). Use that docs page to confirm the tool list is available through MCPO.
 
 ## Notes for Open WebUI wiring
 - Ensure Open WebUI joins `mcp-net` or can reach `localhost` on the mapped ports.
@@ -142,7 +146,7 @@ curl http://localhost:2004/healthz
   ```
 - Filesystem container sees demo data:
   ```bash
-  docker compose --env-file .env exec filesystem-mcp ls /demo-data
+  docker compose --env-file .env exec filesystem-mcp ls /docs
   ```
 - Memory persistence path is mounted:
   ```bash
@@ -155,6 +159,21 @@ curl http://localhost:2004/healthz
     -d '{"to":["ops@example.com"],"subject":"Ping","body_text":"hello"}'
   ```
   Then open MailHog UI (`http://localhost:2005`) and confirm the message appears.
+
+### Email via MCPO/OpenAPI (attachment gotchas)
+- The `/email/send` route in MCPO expects attachments as objects with `path` (optionally `filename`). Example payload:
+  ```json
+  {
+    "to": ["user@example.com"],
+    "subject": "Border Patrol Monthly Report - March 2024",
+    "body_html": "<p>See attached.</p>",
+    "attachments": [
+      {"path": "bp_crossings_central.xlsx"},
+      {"path": "bp_crossings_east.xlsx"}
+    ]
+  }
+  ```
+- Paths must be under `/attachments` inside the container (mapped from `./docs` by default). Absolute paths are normalized only if they stay under that root; anything else fails fast with a 400.
 
 ## Debugging tips
 - Check service logs: `docker compose --env-file .env logs <service> -f`

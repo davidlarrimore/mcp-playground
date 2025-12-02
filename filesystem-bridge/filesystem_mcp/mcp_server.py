@@ -1,3 +1,5 @@
+import base64
+import binascii
 import logging
 import os
 from datetime import datetime
@@ -15,7 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("filesystem-mcp")
 
-ROOT = Path(os.getenv("FILESYSTEM_ROOT", "/demo-data")).resolve()
+ROOT = Path(os.getenv("FILESYSTEM_ROOT", "/docs")).resolve()
 
 server = FastMCP("filesystem-mcp")
 
@@ -56,6 +58,37 @@ def _resolve_path(path: str) -> Path:
         raise ValueError(f"Path escapes root: {path}") from exc
     if not candidate.exists():
         raise FileNotFoundError(f"Path not found: {candidate}")
+    return candidate
+
+
+def _resolve_new_path(path: str, create_parents: bool) -> Path:
+    """
+    Resolve a path for writing under ROOT. Creates parent directories if requested.
+    """
+
+    if path in ("", ".", "/"):
+        raise ValueError("Provide a file path under the allowed root, not the root itself")
+
+    candidate_path = Path(path)
+    if candidate_path.is_absolute():
+        candidate = candidate_path.resolve()
+    else:
+        candidate = (ROOT / path).resolve()
+
+    try:
+        candidate.relative_to(ROOT)
+    except ValueError as exc:
+        raise ValueError(f"Path escapes root: {path}") from exc
+
+    parent = candidate.parent
+    if not parent.exists():
+        if create_parents:
+            parent.mkdir(parents=True, exist_ok=True)
+        else:
+            raise FileNotFoundError(f"Parent directory does not exist: {parent}")
+    elif not parent.is_dir():
+        raise ValueError(f"Parent path is not a directory: {parent}")
+
     return candidate
 
 
@@ -157,6 +190,59 @@ async def read_file(
     # Fallback to text
     text = await read_text(path=path, encoding=encoding, max_bytes=max_bytes)
     return {"type": "text", "path": str(full), "text": text}
+
+
+@server.tool()
+async def create_file(
+    path: str,
+    content_base64: Optional[str] = None,
+    text: Optional[str] = None,
+    encoding: str = "utf-8",
+    overwrite: bool = True,
+    create_parents: bool = True,
+    max_bytes: int = 10_000_000,
+) -> dict:
+    """
+    Create or overwrite a file under FILESYSTEM_ROOT.
+    Provide either `content_base64` for binary data (e.g., PDFs) or `text` to be encoded with `encoding`.
+    """
+
+    if (content_base64 is None and text is None) or (
+        content_base64 is not None and text is not None
+    ):
+        raise ValueError("Provide either content_base64 or text, but not both")
+
+    target = _resolve_new_path(path, create_parents=create_parents)
+
+    def _write() -> dict:
+        existed = target.exists()
+        if target.exists() and target.is_dir():
+            raise ValueError(f"Path is a directory: {target}")
+        if target.exists() and not overwrite:
+            raise ValueError(f"File already exists and overwrite is False: {target}")
+
+        if text is not None:
+            raw = text.encode(encoding)
+        else:
+            try:
+                raw = base64.b64decode(content_base64, validate=True)
+            except (binascii.Error, ValueError) as exc:
+                raise ValueError("content_base64 must be valid base64-encoded data") from exc
+
+        if len(raw) > max_bytes:
+            raise ValueError(f"Content too large ({len(raw)} bytes > {max_bytes})")
+
+        target.write_bytes(raw)
+        stat = target.stat()
+        return {
+            "path": str(target.relative_to(ROOT)),
+            "absolute_path": str(target),
+            "size": stat.st_size,
+            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            "created": not existed,
+        }
+
+    return await anyio.to_thread.run_sync(_write)
 
 
 @server.tool()

@@ -37,8 +37,8 @@ curl_check "memory" "http://${HOST}:${MEM_PORT}/healthz"
 curl_check "email" "http://${HOST}:${EMAIL_PORT}/healthz"
 
 echo "== Filesystem list =="
-docker compose --env-file "${ENV_FILE}" exec -T filesystem-mcp ls /demo-data || fail "filesystem container cannot list /demo-data"
-ok "filesystem container can see /demo-data"
+docker compose --env-file "${ENV_FILE}" exec -T filesystem-mcp ls /docs || fail "filesystem container cannot list /docs"
+ok "filesystem container can see /docs"
 
 echo "== Memory storage =="
 docker compose --env-file "${ENV_FILE}" exec -T memory-mcp ls /data || fail "memory container cannot access /data"

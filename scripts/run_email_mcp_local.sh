@@ -12,7 +12,7 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
-export ATTACH_ROOT="${ATTACH_ROOT:-${ROOT_DIR}/demo-data}"
+export ATTACH_ROOT="${ATTACH_ROOT:-${ROOT_DIR}/docs}"
 export SMTP_HOST="${SMTP_HOST:-localhost}"
 export SMTP_PORT="${SMTP_PORT:-1025}"
 export SMTP_FROM_DEFAULT="${SMTP_FROM_DEFAULT:-noreply@example.test}"

@@ -140,7 +140,7 @@ services:
     ports:
       - "8002:8000"
     volumes:
-      - ./demo-data:/demo-data:rw   # Course docs for the scenario
+      - ./docs:/docs:rw   # Course docs for the scenario
 
   memory-mcp:
     image: mcp/memory:latest
@@ -166,7 +166,7 @@ services:
       SMTP_FROM_DEFAULT: "noreply@example.test"
       ATTACH_ROOT: /attachments
     volumes:
-      - ./demo-data:/attachments:ro
+      - ./docs:/attachments:ro
 
 For each official MCP image (mcp/time, mcp/memory, mcp/filesystem), confirm any HTTP-specific flags in the Docker MCP Catalog’s Manual installation before the workshop, but the pattern will remain “image + port 8000 + your volume(s)”.  ￼
 
@@ -236,7 +236,7 @@ async def send_email_with_attachments(
 	•	Use smtplib.SMTP(host=SMTP_HOST, port=SMTP_PORT) to send to mailhog.
 
 Demo flow to highlight:
-	1.	Agent uses Filesystem MCP to locate a scenario file (e.g., demo-data/CourseOutlineWeek8.pdf).
+	1.	Agent uses Filesystem MCP to locate a scenario file (e.g., docs/CourseOutlineWeek8.pdf).
 	2.	Agent calls Email MCP with:
 	•	attachments=[{"path": "CourseOutlineWeek8.pdf", "filename": "Week8Outline.pdf"}]
 	3.	MailHog captures the message; you refresh the MailHog UI at http://localhost:8025 and click the message to show:
@@ -259,7 +259,7 @@ Here’s how you can structure Part 2 as a progressive story:
 	•	Show the model calling time to pick correct dates/time zones for your audience.  ￼
 	•	Prompt: “Schedule this invite for the next available Thursday at 12pm Eastern, and include the date in the email.”
 	3.	Level 2 – Add Filesystem MCP
-	•	Mount your scenario docs under ./demo-data.
+	•	Mount your scenario docs under ./docs.
 	•	Have the agent call filesystem tools to:
 	•	List available course docs.
 	•	Read a specific lesson outline.
