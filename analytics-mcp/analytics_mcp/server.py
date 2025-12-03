@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import List, Optional
 from fastmcp import FastMCP
@@ -7,6 +8,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
+
+# Add parent directory to path for shared module
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.download_urls import generate_signed_url
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
@@ -294,15 +302,173 @@ async def generate_chart(
 
         logger.info(f"Generated {chart_type} chart: {output_path}")
 
-        return {
+        # Generate signed download URL
+        try:
+            download_info = generate_signed_url(str(output_path))
+            download_url = download_info["url"]
+            expires_hours = download_info["expires_in"] // 3600
+        except Exception as e:
+            logger.error(f"Error generating download URL: {e}")
+            download_info = None
+            download_url = None
+            expires_hours = 0
+
+        result = {
             "path": str(output_path.relative_to(WORKSPACE)),
             "absolute_path": str(output_path),
             "size": output_path.stat().st_size,
-            "chart_type": chart_type
+            "chart_type": chart_type,
+            "message": f"{chart_type.capitalize()} chart created successfully: {title or output_filename}"
         }
+
+        if download_info:
+            result["download_url"] = download_url
+            result["download_expires_at"] = download_info["expires_at"]
+            result["download_expires_in"] = download_info["expires_in"]
+            result["message"] += f"\n\n📥 Download your chart:\n{download_url}\n\n⏰ Link expires in {expires_hours} hours"
+
+        return result
     except Exception as e:
         plt.close()  # Clean up on error
         error_msg = f"Error generating chart: {str(e)}"
+        logger.error(error_msg)
+        return {"error": error_msg}
+
+@mcp.tool
+async def create_presentation(
+    title: str,
+    slides: List[dict],
+    output_filename: str,
+    subtitle: Optional[str] = None
+) -> dict:
+    """
+    Create a PowerPoint presentation.
+
+    Args:
+        title: Presentation title
+        slides: List of slides with structure:
+            [{
+                "title": "Slide Title",
+                "content": "Slide content text",
+                "bullet_points": ["Point 1", "Point 2"],
+                "image_path": "optional/path/to/image.png",
+                "table": {
+                    "columns": ["Region", "Revenue"],
+                    "rows": [{"Region": "East", "Revenue": "50K"}]
+                }
+            }]
+        output_filename: Name of output file
+        subtitle: Optional subtitle for title slide
+    """
+    try:
+        prs = Presentation()
+        prs.slide_width = Inches(10)
+        prs.slide_height = Inches(7.5)
+
+        # Title slide
+        title_slide_layout = prs.slide_layouts[0]
+        slide = prs.slides.add_slide(title_slide_layout)
+        slide.shapes.title.text = title
+        if subtitle:
+            slide.placeholders[1].text = subtitle
+
+        # Content slides
+        for slide_def in slides:
+            # Use title and content layout
+            content_layout = prs.slide_layouts[1]
+            slide = prs.slides.add_slide(content_layout)
+
+            # Add title
+            slide.shapes.title.text = slide_def.get("title", "")
+
+            # Get content placeholder
+            if len(slide.placeholders) > 1:
+                content_placeholder = slide.placeholders[1]
+
+                # Add bullet points if provided
+                if "bullet_points" in slide_def:
+                    text_frame = content_placeholder.text_frame
+                    text_frame.clear()
+                    for point in slide_def["bullet_points"]:
+                        p = text_frame.add_paragraph()
+                        p.text = point
+                        p.level = 0
+                # Add content text if provided
+                elif "content" in slide_def:
+                    content_placeholder.text = slide_def["content"]
+
+            # Add image if provided
+            if "image_path" in slide_def:
+                image_full_path = WORKSPACE / slide_def["image_path"]
+                if image_full_path.exists():
+                    left = Inches(5)
+                    top = Inches(2)
+                    slide.shapes.add_picture(
+                        str(image_full_path),
+                        left, top,
+                        height=Inches(4)
+                    )
+
+            # Add table if provided
+            if "table" in slide_def:
+                table_data = slide_def["table"]
+                rows = len(table_data["rows"]) + 1  # +1 for header
+                cols = len(table_data["columns"])
+
+                left = Inches(1)
+                top = Inches(2.5)
+                width = Inches(8)
+                height = Inches(0.5) * rows
+
+                table = slide.shapes.add_table(rows, cols, left, top, width, height).table
+
+                # Header row
+                for col_idx, col_name in enumerate(table_data["columns"]):
+                    cell = table.cell(0, col_idx)
+                    cell.text = col_name
+                    cell.text_frame.paragraphs[0].font.bold = True
+
+                # Data rows
+                for row_idx, row_data in enumerate(table_data["rows"], 1):
+                    for col_idx, col_name in enumerate(table_data["columns"]):
+                        cell = table.cell(row_idx, col_idx)
+                        cell.text = str(row_data.get(col_name, ""))
+
+        output_path = WORKSPACE / output_filename
+        prs.save(output_path)
+
+        logger.info(f"Created PowerPoint presentation: {output_path}")
+
+        # Generate signed download URL
+        try:
+            download_info = generate_signed_url(str(output_path))
+            download_url = download_info["url"]
+            expires_hours = download_info["expires_in"] // 3600
+        except Exception as e:
+            logger.error(f"Error generating download URL: {e}")
+            download_info = None
+            download_url = None
+            expires_hours = 0
+
+        total_slides = len(slides) + 1  # +1 for title slide
+        result = {
+            "path": str(output_path.relative_to(WORKSPACE)),
+            "absolute_path": str(output_path),
+            "size": output_path.stat().st_size,
+            "slides": total_slides,
+            "message": f"PowerPoint presentation '{title}' created successfully with {total_slides} slide(s)."
+        }
+
+        if download_info:
+            result["download_url"] = download_url
+            result["download_expires_at"] = download_info["expires_at"]
+            result["download_expires_in"] = download_info["expires_in"]
+            result["message"] += f"\n\n📥 Download your presentation:\n{download_url}\n\n⏰ Link expires in {expires_hours} hours"
+
+        return result
+
+    except Exception as e:
+        error_msg = f"Error creating presentation: {str(e)}"
         logger.error(error_msg)
         return {"error": error_msg}
 

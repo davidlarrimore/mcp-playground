@@ -1,8 +1,54 @@
+# Python
 .venv/
+venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.python-version
+
+# Environment
 .env
+.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Temporary files
+tmp/
+*.tmp
+*.log
+
+# Workspace/Generated files
+docs/*
+!docs/.gitkeep
+!docs/README.md
+!docs/QUICK_START.md
+!docs/MCP_USAGE_GUIDE.md
+!docs/SIGNED_DOWNLOADS.md
+!docs/DOWNLOAD_URLS_USAGE.md
+
+# Service-specific
 /email-mcp/.python-version
 /email-mcp/__pycache__/
-docs/*
+/excel-mcp/.python-version
+/word-mcp/.python-version
+/pdf-mcp/.python-version
+/analytics-mcp/.python-version

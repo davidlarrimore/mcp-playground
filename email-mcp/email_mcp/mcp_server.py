@@ -76,9 +76,25 @@ async def send_email(
 ) -> dict:
     """
     Send an email via SMTP with optional attachments.
+
+    Email Body Format:
+    - To send HTML emails: Use ONLY the body_html parameter with valid HTML markup (e.g., "<html><body><h1>Title</h1><p>Content</p></body></html>")
+    - To send plain text emails: Use ONLY the body_text parameter
+    - To send multipart emails: Provide BOTH body_text (fallback) and body_html (preferred display)
+    - At least ONE of body_text or body_html MUST be provided
+
+    IMPORTANT: When sending HTML emails, do NOT put HTML markup in body_text. Use body_html exclusively for HTML content.
+
     Attachments can be provided as list items of either:
     - string paths relative to ATTACH_ROOT
     - dictionaries matching the Attachment schema (path, optional filename)
+
+    Example HTML email:
+    {
+        "to": ["user@example.com"],
+        "subject": "HTML Email Example",
+        "body_html": "<html><body><h1>Welcome</h1><p>This is an <strong>HTML</strong> email.</p></body></html>"
+    }
     """
     try:
         normalized_attachments = [

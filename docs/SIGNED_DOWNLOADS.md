@@ -1,0 +1,293 @@
+# Signed Download URLs
+
+This document explains how the signed download URL feature works for generated documents (XLSX, PDF, DOCX, PPTX).
+
+## Overview
+
+When you create documents using any of the document generation MCP services (Excel, Word, PDF, Analytics), the service automatically generates a signed download URL. This URL allows secure, time-limited access to download the generated file without requiring authentication.
+
+## Features
+
+- **Secure**: URLs are signed using HMAC-SHA256 to prevent tampering
+- **Time-limited**: URLs expire after a configurable period (default: 24 hours)
+- **Easy to use**: Simply click or curl the URL to download the file
+- **Multiple formats**: Works with XLSX, DOCX, PDF, PPTX, and image files
+
+## How It Works
+
+### 1. Document Generation
+
+When you call a document generation tool (e.g., `create_excel_workbook`, `create_word_report`, `create_pdf_from_html`, `create_presentation`), the service:
+
+1. Creates the document and saves it to the workspace
+2. Generates a signed download URL for the file
+3. Returns both the file path and the download URL
+
+### 2. Response Format
+
+All document generation tools now return a response with the following additional fields:
+
+```json
+{
+  "path": "report.pdf",
+  "absolute_path": "/workspace/report.pdf",
+  "size": 12345,
+  "download_url": "http://localhost:8080/download?file=/workspace/report.pdf&expires=1234567890&filename=report.pdf&signature=abc123...",
+  "download_expires_at": 1234567890,
+  "download_expires_in": 86400
+}
+```
+
+- `download_url`: The complete signed URL to download the file
+- `download_expires_at`: Unix timestamp when the URL expires
+- `download_expires_in`: Seconds until expiration (useful for UI display)
+
+### 3. Download Service
+
+The download service runs on port 8080 (configurable) and validates signed URLs:
+
+1. Verifies the signature is valid
+2. Checks that the URL hasn't expired
+3. Ensures the file exists
+4. Serves the file with appropriate headers for download
+
+## Configuration
+
+### Environment Variables
+
+Configure the download service using these environment variables:
+
+```bash
+# Port for download service (default: 8080)
+DOWNLOAD_SERVICE_PORT=8080
+
+# Secret key for signing URLs (CHANGE THIS IN PRODUCTION!)
+DOWNLOAD_URL_SECRET=your-secure-random-secret-here
+
+# Base URL for download links (update if behind proxy/load balancer)
+DOWNLOAD_BASE_URL=http://localhost:8080
+
+# How long URLs are valid in seconds (default: 86400 = 24 hours)
+DOWNLOAD_URL_EXPIRATION=86400
+```
+
+### Security Best Practices
+
+1. **Change the secret key**: Never use the default secret in production
+2. **Use HTTPS**: In production, use HTTPS and update `DOWNLOAD_BASE_URL` accordingly
+3. **Set appropriate expiration**: Balance convenience with security
+4. **Monitor access**: Check download service logs for suspicious activity
+
+## Examples
+
+### Excel File Generation
+
+```python
+# Create an Excel workbook
+result = await create_excel_workbook(
+    sheets=[{
+        "name": "Sales Data",
+        "data": {
+            "columns": ["Region", "Revenue"],
+            "rows": [
+                {"Region": "East", "Revenue": 50000},
+                {"Region": "West", "Revenue": 75000}
+            ]
+        }
+    }],
+    output_filename="sales_report.xlsx"
+)
+
+# Use the download URL
+print(f"Download your file: {result['download_url']}")
+print(f"Link expires in {result['download_expires_in']} seconds")
+```
+
+### PowerPoint Presentation
+
+```python
+# Create a presentation
+result = await create_presentation(
+    title="Q4 Business Review",
+    subtitle="2024 Performance Summary",
+    slides=[
+        {
+            "title": "Revenue Overview",
+            "bullet_points": [
+                "Total revenue: $1.2M",
+                "Growth: 25% YoY",
+                "Top performing region: West"
+            ]
+        },
+        {
+            "title": "Regional Performance",
+            "table": {
+                "columns": ["Region", "Revenue", "Growth"],
+                "rows": [
+                    {"Region": "East", "Revenue": "$500K", "Growth": "20%"},
+                    {"Region": "West", "Revenue": "$700K", "Growth": "30%"}
+                ]
+            }
+        }
+    ],
+    output_filename="q4_review.pptx"
+)
+
+# Share the download link
+print(f"Download presentation: {result['download_url']}")
+```
+
+### Downloading Files
+
+You can download files using:
+
+**Web Browser**: Simply paste the URL in your browser
+
+**curl**:
+```bash
+curl -O -J "http://localhost:8080/download?file=..."
+```
+
+**wget**:
+```bash
+wget --content-disposition "http://localhost:8080/download?file=..."
+```
+
+**Python**:
+```python
+import requests
+
+response = requests.get(download_url)
+with open("downloaded_file.xlsx", "wb") as f:
+    f.write(response.content)
+```
+
+## Supported File Types
+
+The signed download URL feature works with all file types generated by the MCP services:
+
+- **Excel** (`.xlsx`, `.xls`): Workbooks with data and charts
+- **Word** (`.docx`): Documents with text, tables, and formatting
+- **PDF** (`.pdf`): PDFs generated from HTML
+- **PowerPoint** (`.pptx`): Presentations with slides, images, and tables
+- **Images** (`.png`, `.jpg`): Charts and visualizations from analytics
+
+## Troubleshooting
+
+### "Invalid or expired download link" Error
+
+**Causes**:
+- The URL has expired (check `download_expires_at`)
+- The signature is invalid (URL may have been modified)
+- Server secret key was changed after URL generation
+
+**Solution**:
+- Generate a new file to get a fresh download URL
+- Ensure `DOWNLOAD_URL_SECRET` is consistent across restarts
+- Check system clock is synchronized
+
+### "File not found" Error
+
+**Causes**:
+- File was deleted from the workspace
+- File path is incorrect
+
+**Solution**:
+- Regenerate the file
+- Check that the workspace volume is properly mounted in Docker
+
+### Download service not responding
+
+**Causes**:
+- Service not running
+- Port conflict
+- Network configuration issue
+
+**Solution**:
+```bash
+# Check service status
+docker ps | grep download-service
+
+# Check logs
+docker logs download-service
+
+# Restart service
+docker restart download-service
+```
+
+## Architecture Details
+
+### Components
+
+1. **Shared Module** (`shared/download_urls.py`):
+   - Generates and verifies signed URLs
+   - Shared across all MCP services
+
+2. **Download Service** (`download-service/download_server.py`):
+   - HTTP server that validates and serves files
+   - Runs independently from MCP services
+
+3. **MCP Services** (Excel, Word, PDF, Analytics):
+   - Generate documents
+   - Call shared module to create signed URLs
+   - Return URLs in responses
+
+### Security Model
+
+The signature is generated using:
+
+```
+HMAC-SHA256(SECRET_KEY, "filepath|expires_at|filename")
+```
+
+This ensures:
+- URLs cannot be forged without the secret key
+- Tampering with any parameter invalidates the signature
+- Time-based expiration for automatic revocation
+
+## Integration with Other Services
+
+### Behind a Reverse Proxy
+
+If running behind nginx or another reverse proxy:
+
+```bash
+# Update the base URL to your public domain
+DOWNLOAD_BASE_URL=https://api.example.com/downloads
+```
+
+### Docker Networking
+
+Services communicate via the `mcp-net` Docker network. The download service can access files in the shared `/workspace` volume that's mounted across all document generation services.
+
+## API Reference
+
+### Health Check
+
+```bash
+GET /health
+```
+
+Returns service health status:
+```json
+{"status": "healthy"}
+```
+
+### Download File
+
+```bash
+GET /download?file=<path>&expires=<timestamp>&filename=<name>&signature=<sig>
+```
+
+Parameters:
+- `file`: Absolute path to the file
+- `expires`: Unix timestamp when link expires
+- `filename`: Name for downloaded file
+- `signature`: HMAC-SHA256 signature
+
+Response:
+- **200**: File content with `Content-Disposition: attachment`
+- **400**: Missing parameters
+- **403**: Invalid or expired signature
+- **404**: File not found
+- **500**: Server error

@@ -2,7 +2,7 @@
 
 This repo provides a complete MCP (Model Context Protocol) demonstration stack with 8 professional services running on Docker. It includes core utilities (time, filesystem, memory, email) plus advanced document generation capabilities (Excel, Word, PDF, analytics).
 
-**✨ New:** Professional document generation services with Excel workbooks, Word reports, PDF creation, and data analytics with chart generation!
+**✨ New:** Professional document generation services with Excel workbooks, Word reports, PDF creation, PowerPoint presentations, and data analytics with chart generation! All generated documents include signed download URLs for easy sharing.
 
 ## Features
 
@@ -12,11 +12,13 @@ This repo provides a complete MCP (Model Context Protocol) demonstration stack w
 - 🧠 Persistent memory storage
 - 📧 Email with attachments via MailHog
 
-**Document Generation (4):**
+**Document Generation (5):**
 - 📊 Excel - Create workbooks with charts and formatting
 - 📝 Word - Generate professional reports with tables
 - 📄 PDF - Convert HTML to high-quality PDFs
+- 📊 PowerPoint - Create presentations with slides, tables, and images
 - 📈 Analytics - Merge data, calculate stats, create charts
+- 🔗 Signed Downloads - Secure, time-limited download URLs for all generated files
 
 **Integration:**
 - 🔌 MCPO OpenAPI proxy for unified access
@@ -72,7 +74,9 @@ make nuke
 - **Word MCP**: `http://localhost:${WORD_MCP_PORT:-2007}`
 - **PDF MCP**: `http://localhost:${PDF_MCP_PORT:-2008}`
 - **Analytics MCP**: `http://localhost:${ANALYTICS_MCP_PORT:-2009}`
+- **Python SDK MCP**: `http://localhost:${PYTHON_SDK_MCP_PORT:-2011}`
 - MCPO OpenAPI proxy: `http://localhost:${MCPO_PORT:-2010}`
+- **Download Service**: `http://localhost:${DOWNLOAD_SERVICE_PORT:-8080}`
 
 > The reference MCP images ship as stdio servers. Compose builds lightweight wrappers (time-bridge, filesystem-bridge, memory-bridge) using `supergateway` to expose Streamable HTTP endpoints.
 
@@ -140,6 +144,41 @@ Four new MCP services provide professional document creation and data analysis c
   - `merge_excel_files` - Merge multiple CSV/Excel files into one dataset
   - `calculate_summary_stats` - Calculate statistics with optional grouping
   - `generate_chart` - Create bar, line, or pie charts from data
+  - `create_presentation` - Create PowerPoint presentations with slides, bullet points, tables, and images
+
+### Python SDK Demo MCP (`python-sdk-mcp`)
+- Container: `python-sdk-mcp`
+- Port: `${PYTHON_SDK_MCP_PORT:-2011}`
+- MCP endpoint: `http://localhost:2011/mcp`
+- Health: `GET /healthz`
+- Built with the official `mcp` Python SDK (Streamable HTTP) to showcase native resources, tools, and prompts without a gateway.
+- **Tools/Resources:**
+  - `list_workspace_files` - Glob the shared workspace with optional recursion and hidden files
+  - `read_text_file` - Safe text reader with truncation and optional signed download URL
+  - `create_note` - Write markdown notes with simple front matter into `/workspace/notes`
+  - Resource `workspace://index` - Quick index of recent files
+  - Prompt `summarize_file_prompt` - Template that nudges the model to call `read_text_file` first
+
+### Download Service
+
+All document generation services automatically create signed download URLs for generated files. These URLs:
+- Are secure (HMAC-SHA256 signed)
+- Expire after 24 hours (configurable)
+- Can be shared or used directly in browsers/scripts
+
+Example response from document generation:
+```json
+{
+  "path": "report.pdf",
+  "absolute_path": "/workspace/report.pdf",
+  "size": 12345,
+  "download_url": "http://localhost:8080/download?file=...&signature=...",
+  "download_expires_at": 1234567890,
+  "download_expires_in": 86400
+}
+```
+
+See [docs/SIGNED_DOWNLOADS.md](docs/SIGNED_DOWNLOADS.md) for complete technical documentation and [docs/DOWNLOAD_URLS_USAGE.md](docs/DOWNLOAD_URLS_USAGE.md) for Open WebUI integration examples.
 
 ### Shared Workspace
 - All document services mount `./docs` as their workspace at `/workspace`
@@ -195,7 +234,11 @@ make email-local-stop
 - Open WebUI integration: add an **OpenAPI** server pointing to `http://localhost:2010/<tool>/openapi.json` (or `http://mcpo:8000/<tool>/openapi.json` if Open WebUI runs on `mcp-net`). Repeat per tool if you want individual OpenAPI servers, or use MCP Streamable HTTP type to add all at once.
 
 ## Notes for Open WebUI wiring
+- The Docker network is named `mcp-net` (set explicitly in `docker-compose.yml`).
 - Ensure Open WebUI joins `mcp-net` or can reach `localhost` on the mapped ports.
+- If Open WebUI runs in a separate Compose project, connect it to `mcp-net` after that network exists:
+  - `docker network create mcp-net` (first time only)
+  - `docker network connect mcp-net <openwebui_container>`
 - Add tool servers in Open WebUI pointing at the hostnames/ports above.
 ## Open WebUI setup
 - Network: either (a) run Open WebUI on the host and use localhost ports above, or (b) attach its container to `mcp-net` so it can resolve service names. Example: `docker network connect mcp-net <openwebui_container>`.
@@ -244,8 +287,11 @@ Run these after `make up`:
   curl http://localhost:2007/healthz  # word
   curl http://localhost:2008/healthz  # pdf
   curl http://localhost:2009/healthz  # analytics
+
+  # Python SDK demo
+  curl http://localhost:2011/healthz  # python-sdk-mcp
   ```
-  Each should return: `ok`
+  Each should return: `ok` (python-sdk-mcp returns JSON `{"status":"ok"}`)
 - MCPO OpenAPI docs (verify all services):
   ```bash
   curl -I http://localhost:2010/time/docs
@@ -269,20 +315,31 @@ Run these after `make up`:
   ```
   Then open MailHog UI (`http://localhost:2005`) and confirm the message appears.
 
-### Email via MCPO/OpenAPI (attachment gotchas)
-- The `/email/send` route in MCPO expects attachments as objects with `path` (optionally `filename`). Example payload:
-  ```json
-  {
-    "to": ["user@example.com"],
-    "subject": "Border Patrol Monthly Report - March 2024",
-    "body_html": "<p>See attached.</p>",
-    "attachments": [
-      {"path": "bp_crossings_central.xlsx"},
-      {"path": "bp_crossings_east.xlsx"}
-    ]
-  }
-  ```
-- Paths must be under `/attachments` inside the container (mapped from `./docs` by default). Absolute paths are normalized only if they stay under that root; anything else fails fast with a 400.
+### Email via MCPO/OpenAPI
+
+**Sending HTML Emails:**
+- Use the `body_html` field with valid HTML markup for HTML emails
+- Use the `body_text` field for plain text emails
+- Do NOT put HTML markup in `body_text` - use `body_html` exclusively for HTML content
+- At least one of `body_text` or `body_html` must be provided
+
+**Example HTML Email:**
+```json
+{
+  "to": ["user@example.com"],
+  "subject": "Border Patrol Monthly Report - March 2024",
+  "body_html": "<html><body><h1>Monthly Report</h1><p>See attached files for detailed analysis.</p></body></html>",
+  "attachments": [
+    {"path": "bp_crossings_central.xlsx"},
+    {"path": "bp_crossings_east.xlsx"}
+  ]
+}
+```
+
+**Attachment Requirements:**
+- The `/email/send` route expects attachments as objects with `path` (optionally `filename`)
+- Paths must be under `/attachments` inside the container (mapped from `./docs` by default)
+- Absolute paths are normalized only if they stay under that root; anything else fails fast with a 400
 
 ## Debugging tips
 - Check service logs: `docker compose --env-file .env logs <service> -f`

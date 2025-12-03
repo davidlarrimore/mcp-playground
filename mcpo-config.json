@@ -31,6 +31,10 @@
     "analytics": {
       "type": "streamable-http",
       "url": "http://analytics-mcp:8000/mcp"
+    },
+    "python-sdk": {
+      "type": "streamable-http",
+      "url": "http://python-sdk-mcp:8000/mcp"
     }
   }
 }

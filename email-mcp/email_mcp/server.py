@@ -65,8 +65,14 @@ class SendEmailRequest(BaseModel):
     to: List[EmailStr]
     cc: List[EmailStr] = []
     subject: str
-    body_text: Optional[str] = None
-    body_html: Optional[str] = None
+    body_text: Optional[str] = Field(
+        None,
+        description="Plain text email body. Do NOT include HTML markup here. Use body_html for HTML content."
+    )
+    body_html: Optional[str] = Field(
+        None,
+        description="HTML email body. Use this field for HTML formatted emails with valid HTML markup (e.g., '<html><body><h1>Title</h1></body></html>')."
+    )
     attachments: List[AttachmentInput] = Field(
         default_factory=list,
         description="Attachments as path strings or objects (path, optional filename) under ATTACH_ROOT",
@@ -139,7 +145,30 @@ async def healthz() -> dict:
     return {"status": "ok"}
 
 
-@app.post("/send")
+@app.post(
+    "/send",
+    summary="Send an email via SMTP",
+    description="""
+    Send an email with optional HTML formatting and attachments.
+
+    **Email Body Options:**
+    - **HTML Email**: Use `body_html` field with valid HTML markup (e.g., `<html><body><h1>Title</h1><p>Content</p></body></html>`)
+    - **Plain Text Email**: Use `body_text` field with plain text content
+    - **Multipart Email**: Provide both `body_text` (fallback) and `body_html` (preferred display)
+    - **Required**: At least one of `body_text` or `body_html` must be provided
+
+    **IMPORTANT**: Do NOT put HTML markup in `body_text`. Use `body_html` exclusively for HTML content.
+
+    **Example HTML Email Request:**
+    ```json
+    {
+      "to": ["recipient@example.com"],
+      "subject": "Welcome Email",
+      "body_html": "<html><body><h1>Welcome!</h1><p>This is an <strong>HTML</strong> email.</p></body></html>"
+    }
+    ```
+    """,
+)
 async def send_email(request: SendEmailRequest) -> dict:
     logger.info(
         "Sending email via SMTP host=%s port=%s to=%s attachments=%s",

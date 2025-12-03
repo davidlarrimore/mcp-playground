@@ -2,7 +2,7 @@ version: "3.9"
 
 networks:
   mcp-net:
-    driver: bridge
+    external: true
 
 volumes:
   memory-data:
@@ -128,9 +128,11 @@ services:
       - "${EXCEL_MCP_PORT:-2006}:8000"
     environment:
       WORKSPACE: /workspace
+      DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./docs:/workspace:rw
+      - ./shared:/app/shared:ro
     logging:
       driver: "json-file"
       options:
@@ -148,9 +150,11 @@ services:
       - "${WORD_MCP_PORT:-2007}:8000"
     environment:
       WORKSPACE: /workspace
+      DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./docs:/workspace:rw
+      - ./shared:/app/shared:ro
     logging:
       driver: "json-file"
       options:
@@ -168,9 +172,11 @@ services:
       - "${PDF_MCP_PORT:-2008}:8000"
     environment:
       WORKSPACE: /workspace
+      DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./docs:/workspace:rw
+      - ./shared:/app/shared:ro
     logging:
       driver: "json-file"
       options:
@@ -188,9 +194,55 @@ services:
       - "${ANALYTICS_MCP_PORT:-2009}:8000"
     environment:
       WORKSPACE: /workspace
+      DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./docs:/workspace:rw
+      - ./shared:/app/shared:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  python-sdk-mcp:
+    build:
+      context: ./python-sdk-mcp
+    container_name: python-sdk-mcp
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${PYTHON_SDK_MCP_PORT:-2011}:8000"
+    environment:
+      WORKSPACE: /workspace
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}
+    volumes:
+      - ./docs:/workspace:rw
+      - ./shared:/app/shared:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  download-service:
+    build:
+      context: ./download-service
+    container_name: download-service
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${DOWNLOAD_SERVICE_PORT:-8080}:8080"
+    environment:
+      DOWNLOAD_URL_SECRET: ${DOWNLOAD_URL_SECRET:-change-me-in-production}
+      DOWNLOAD_SERVICE_PORT: 8080
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./docs:/workspace:ro
+      - ./shared:/app/shared:ro
     logging:
       driver: "json-file"
       options:

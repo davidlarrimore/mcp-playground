@@ -1,11 +1,16 @@
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import List, Optional
 from fastmcp import FastMCP
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, LineChart, Reference
 from openpyxl.styles import Font, PatternFill, Alignment
+
+# Add parent directory to path for shared module
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.download_urls import generate_signed_url
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
@@ -122,12 +127,32 @@ async def create_excel_workbook(
 
     logger.info(f"Created Excel workbook: {output_path}")
 
-    return {
+    # Generate signed download URL
+    try:
+        download_info = generate_signed_url(str(output_path))
+        download_url = download_info["url"]
+        expires_hours = download_info["expires_in"] // 3600
+    except Exception as e:
+        logger.error(f"Error generating download URL: {e}")
+        download_info = None
+        download_url = None
+        expires_hours = 0
+
+    result = {
         "path": str(output_path.relative_to(WORKSPACE)),
         "absolute_path": str(output_path),
         "size": output_path.stat().st_size,
-        "sheets": len(sheets)
+        "sheets": len(sheets),
+        "message": f"Excel workbook created successfully with {len(sheets)} sheet(s)."
     }
+
+    if download_info:
+        result["download_url"] = download_url
+        result["download_expires_at"] = download_info["expires_at"]
+        result["download_expires_in"] = download_info["expires_in"]
+        result["message"] += f"\n\n📥 Download your file:\n{download_url}\n\n⏰ Link expires in {expires_hours} hours"
+
+    return result
 
 if __name__ == "__main__":
     mcp.run()
