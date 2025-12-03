@@ -123,10 +123,17 @@ def _send_email(payload: SendEmailRequest) -> None:
     if payload.cc:
         message["Cc"] = ", ".join(payload.cc)
 
-    if payload.body_text:
+    if payload.body_text and payload.body_html:
+        # Multipart: plain text base with HTML alternative
         message.set_content(payload.body_text)
-    if payload.body_html:
         message.add_alternative(payload.body_html, subtype="html")
+    elif payload.body_html:
+        # HTML only - set directly to avoid auto-generated plain text
+        message.set_content(payload.body_html, subtype="html", charset="utf-8")
+        message.replace_header("Content-Type", 'text/html; charset="utf-8"')
+    elif payload.body_text:
+        # Plain text only
+        message.set_content(payload.body_text)
 
     _attach_files(message, payload.attachments)
 
