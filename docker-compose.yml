@@ -184,6 +184,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  ms-365-mcp:
+    build:
+      context: ./ms-365-mcp-server
+    container_name: ms-365-mcp
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${MS365_MCP_PORT:-2012}:8000"
+    environment:
+      MS365_MCP_CLIENT_ID: ${MS365_MCP_CLIENT_ID}
+      MS365_MCP_CLIENT_SECRET: ${MS365_MCP_CLIENT_SECRET}
+      MS365_MCP_TENANT_ID: ${MS365_MCP_TENANT_ID:-common}
+      MS365_MCP_ORG_MODE: ${MS365_MCP_ORG_MODE:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["--http", "8000", "--org-mode"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   download-service:
     build:
       context: ./download-service

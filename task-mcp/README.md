@@ -10,6 +10,7 @@ A SQLite-backed task management service exposed via Model Context Protocol (MCP)
 - **Extensible Metadata**: Store custom JSON metadata (tags, estimates, etc.)
 - **Task Queue Operations**: Pop highest-priority pending tasks for worker agents
 - **Statistics**: Get counts by task status
+- **Document Attachments**: Attach and manage documents linked to tasks
 - **Persistent Storage**: SQLite database in Docker volume
 - **MCP Compatible**: Full Model Context Protocol support via FastMCP
 
@@ -28,8 +29,9 @@ A SQLite-backed task management service exposed via Model Context Protocol (MCP)
 - `Dockerfile` - Container definition
 - `start-task.sh` - Entry point using supergateway
 
-## Task Schema
+## Database Schema
 
+### Tasks Table
 ```sql
 CREATE TABLE tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,6 +45,21 @@ CREATE TABLE tasks (
     updated_at TEXT NOT NULL                 -- ISO timestamp
 );
 ```
+
+### Task Attachments Table
+```sql
+CREATE TABLE task_attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    document_id TEXT NOT NULL,               -- Reference to document (e.g., from document-mcp)
+    filename TEXT,                           -- Optional display filename
+    description TEXT,                        -- Optional attachment description
+    attached_at TEXT NOT NULL,               -- ISO timestamp
+    FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
+);
+```
+
+**Note**: Attachments are automatically deleted when their parent task is deleted (CASCADE).
 
 ## MCP Tools
 
@@ -181,6 +198,89 @@ Get task statistics.
 }
 ```
 
+### task_attach_document
+Attach a document to a task.
+
+**Parameters:**
+- `task_id` (integer, required) - Task ID to attach the document to
+- `document_id` (string, required) - Document identifier (e.g., from document-mcp)
+- `filename` (string, optional) - Filename for display purposes
+- `description` (string, optional) - Description of the attachment
+
+**Returns:** `{attachment_id, message}` or `{error: "..."}`
+
+**Example:**
+```json
+{
+  "task_id": 5,
+  "document_id": "doc_abc123",
+  "filename": "requirements.pdf",
+  "description": "Project requirements document"
+}
+```
+
+### task_list_attachments
+List all document attachments for a task.
+
+**Parameters:**
+- `task_id` (integer, required) - Task ID to list attachments for
+
+**Returns:** `{attachments: [...], count: N}` or `{error: "..."}`
+
+**Example:**
+```json
+{
+  "task_id": 5
+}
+```
+
+**Example response:**
+```json
+{
+  "attachments": [
+    {
+      "id": 1,
+      "task_id": 5,
+      "document_id": "doc_abc123",
+      "filename": "requirements.pdf",
+      "description": "Project requirements document",
+      "attached_at": "2024-01-15T10:30:00.123456"
+    }
+  ],
+  "count": 1
+}
+```
+
+### task_get_attachment
+Get details of a specific attachment.
+
+**Parameters:**
+- `attachment_id` (integer, required) - Attachment ID to retrieve
+
+**Returns:** `{attachment: {...}}` or `{error: "..."}`
+
+**Example:**
+```json
+{
+  "attachment_id": 3
+}
+```
+
+### task_remove_attachment
+Remove a document attachment from a task.
+
+**Parameters:**
+- `attachment_id` (integer, required) - Attachment ID to remove
+
+**Returns:** `{success: true, message: "..."}` or `{error: "..."}`
+
+**Example:**
+```json
+{
+  "attachment_id": 3
+}
+```
+
 ## Usage Examples
 
 ### Creating a Sprint Backlog
@@ -248,6 +348,42 @@ stats = task_stats()
 # Display summary
 print(f"Pending: {len(pending['tasks'])}")
 print(f"Total: {stats['stats']['total']}")
+```
+
+### Document Attachment Workflow
+
+```python
+# Create a task for reviewing a proposal
+result = task_create({
+    "title": "Review Q1 Project Proposal",
+    "description": "Review and provide feedback on the Q1 proposal",
+    "priority": 10,
+    "project_id": "planning-2024"
+})
+task_id = result["task_id"]
+
+# Attach related documents (assuming documents are already uploaded to document-mcp)
+task_attach_document({
+    "task_id": task_id,
+    "document_id": "doc_proposal_q1_2024",
+    "filename": "Q1_Proposal.pdf",
+    "description": "Main project proposal document"
+})
+
+task_attach_document({
+    "task_id": task_id,
+    "document_id": "doc_budget_q1_2024",
+    "filename": "Q1_Budget.xlsx",
+    "description": "Budget spreadsheet with cost estimates"
+})
+
+# Later, when working on the task, list all attachments
+attachments = task_list_attachments({"task_id": task_id})
+print(f"Task has {attachments['count']} attachment(s):")
+for att in attachments["attachments"]:
+    print(f"  - {att['filename']}: {att['description']}")
+    # Use document_id to retrieve actual document from document-mcp
+    # document_get(att['document_id'])
 ```
 
 ## Configuration
@@ -349,12 +485,13 @@ The task schema is designed for future enhancements:
 - **Subtasks**: Add `parent_task_id` column for hierarchical tasks
 - **Tags**: Extract tags from metadata into separate table with many-to-many relationship
 - **Comments**: Add `task_comments` table with foreign key to tasks
-- **Attachments**: Add `task_attachments` table with file references
 - **History/Audit**: Add `task_history` table tracking all changes
 - **Due Dates**: Add `due_date` column with timezone support
 - **Assignees**: Add `assigned_to` column or separate assignments table
 - **Dependencies**: Add `task_dependencies` table for task relationships
 - **Recurring Tasks**: Add `recurrence_rule` column with cron-like syntax
+- **Attachment Metadata**: Add file size, MIME type, checksum to attachments
+- **Attachment Versioning**: Track multiple versions of the same document
 
 ### Metadata Best Practices
 Use the `metadata` JSON field for custom fields without schema changes:

@@ -48,7 +48,4 @@ docs/*
 # Service-specific
 /email-mcp/.python-version
 /email-mcp/__pycache__/
-/excel-mcp/.python-version
-/word-mcp/.python-version
-/pdf-mcp/.python-version
 /analytics-mcp/.python-version

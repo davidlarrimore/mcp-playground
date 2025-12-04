@@ -276,6 +276,144 @@ async def task_stats() -> dict:
         return {"error": error_msg}
 
 
+@mcp.tool
+async def task_attach_document(
+    task_id: int,
+    document_id: str,
+    filename: Optional[str] = None,
+    description: Optional[str] = None
+) -> dict:
+    """
+    Attach a document to a task.
+
+    Args:
+        task_id: Task ID to attach the document to
+        document_id: Document identifier (e.g., from document-mcp server)
+        filename: Optional filename for display purposes
+        description: Optional description of the attachment
+
+    Returns:
+        Dictionary with attachment_id and confirmation message
+
+    Example:
+        task_attach_document(
+            task_id=5,
+            document_id="doc_abc123",
+            filename="requirements.pdf",
+            description="Project requirements document"
+        )
+    """
+    try:
+        # Verify task exists
+        task = task_store.get_task(task_id)
+        if not task:
+            return {"error": f"Task {task_id} not found"}
+
+        attachment_id = task_store.attach_document(
+            task_id=task_id,
+            document_id=document_id,
+            filename=filename,
+            description=description
+        )
+        return {
+            "attachment_id": attachment_id,
+            "message": f"Document {document_id} attached to task {task_id}"
+        }
+    except Exception as e:
+        error_msg = f"Error attaching document: {str(e)}"
+        logger.error(error_msg)
+        return {"error": error_msg}
+
+
+@mcp.tool
+async def task_list_attachments(task_id: int) -> dict:
+    """
+    List all document attachments for a task.
+
+    Args:
+        task_id: Task ID to list attachments for
+
+    Returns:
+        Dictionary with list of attachments and count
+
+    Example:
+        task_list_attachments(task_id=5)
+    """
+    try:
+        # Verify task exists
+        task = task_store.get_task(task_id)
+        if not task:
+            return {"error": f"Task {task_id} not found"}
+
+        attachments = task_store.list_attachments(task_id)
+        return {
+            "attachments": attachments,
+            "count": len(attachments)
+        }
+    except Exception as e:
+        error_msg = f"Error listing attachments: {str(e)}"
+        logger.error(error_msg)
+        return {"error": error_msg}
+
+
+@mcp.tool
+async def task_remove_attachment(attachment_id: int) -> dict:
+    """
+    Remove a document attachment from a task.
+
+    Args:
+        attachment_id: Attachment ID to remove
+
+    Returns:
+        Success message or error
+
+    Example:
+        task_remove_attachment(attachment_id=3)
+    """
+    try:
+        # Get attachment info before deleting
+        attachment = task_store.get_attachment(attachment_id)
+        if not attachment:
+            return {"error": f"Attachment {attachment_id} not found"}
+
+        success = task_store.remove_attachment(attachment_id)
+        if success:
+            return {
+                "success": True,
+                "message": f"Attachment {attachment_id} removed successfully"
+            }
+        return {"error": f"Failed to remove attachment {attachment_id}"}
+    except Exception as e:
+        error_msg = f"Error removing attachment: {str(e)}"
+        logger.error(error_msg)
+        return {"error": error_msg}
+
+
+@mcp.tool
+async def task_get_attachment(attachment_id: int) -> dict:
+    """
+    Get details of a specific attachment.
+
+    Args:
+        attachment_id: Attachment ID to retrieve
+
+    Returns:
+        Attachment dictionary with all fields or error if not found
+
+    Example:
+        task_get_attachment(attachment_id=3)
+    """
+    try:
+        attachment = task_store.get_attachment(attachment_id)
+        if attachment:
+            return {"attachment": attachment}
+        return {"error": f"Attachment {attachment_id} not found"}
+    except Exception as e:
+        error_msg = f"Error retrieving attachment: {str(e)}"
+        logger.error(error_msg)
+        return {"error": error_msg}
+
+
 if __name__ == "__main__":
     logger.info(f"Starting task-mcp server with database at {DB_PATH}")
     mcp.run()

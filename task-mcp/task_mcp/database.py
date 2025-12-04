@@ -26,7 +26,7 @@ class TaskStore:
         logger.info(f"TaskStore initialized with database at {db_path}")
 
     def _migrate(self):
-        """Create the tasks table if it doesn't exist."""
+        """Create the tasks and task_attachments tables if they don't exist."""
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,6 +40,25 @@ class TaskStore:
                 updated_at TEXT NOT NULL
             )
         """)
+
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS task_attachments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                document_id TEXT NOT NULL,
+                filename TEXT,
+                description TEXT,
+                attached_at TEXT NOT NULL,
+                FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
+            )
+        """)
+
+        # Create index for faster lookups
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_task_attachments_task_id
+            ON task_attachments(task_id)
+        """)
+
         self.conn.commit()
         logger.info("Database schema migrated successfully")
 
@@ -256,6 +275,95 @@ class TaskStore:
         """)
         row = cursor.fetchone()
         return dict(row)
+
+    def attach_document(
+        self,
+        task_id: int,
+        document_id: str,
+        filename: Optional[str] = None,
+        description: Optional[str] = None
+    ) -> int:
+        """
+        Attach a document to a task.
+
+        Args:
+            task_id: Task ID
+            document_id: Document identifier (e.g., from document-mcp)
+            filename: Optional filename for display
+            description: Optional description of the attachment
+
+        Returns:
+            ID of the newly created attachment
+        """
+        now = self._current_timestamp()
+
+        cursor = self.conn.execute(
+            """
+            INSERT INTO task_attachments (task_id, document_id, filename, description, attached_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (task_id, document_id, filename, description, now)
+        )
+        self.conn.commit()
+        attachment_id = cursor.lastrowid
+        logger.info(f"Attached document {document_id} to task {task_id}")
+        return attachment_id
+
+    def list_attachments(self, task_id: int) -> List[Dict[str, Any]]:
+        """
+        List all attachments for a task.
+
+        Args:
+            task_id: Task ID
+
+        Returns:
+            List of attachment dictionaries
+        """
+        cursor = self.conn.execute(
+            "SELECT * FROM task_attachments WHERE task_id = ? ORDER BY attached_at DESC",
+            (task_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    def remove_attachment(self, attachment_id: int) -> bool:
+        """
+        Remove an attachment from a task.
+
+        Args:
+            attachment_id: Attachment ID
+
+        Returns:
+            True if attachment was removed, False if not found
+        """
+        cursor = self.conn.execute(
+            "DELETE FROM task_attachments WHERE id = ?",
+            (attachment_id,)
+        )
+        self.conn.commit()
+
+        if cursor.rowcount > 0:
+            logger.info(f"Removed attachment {attachment_id}")
+            return True
+        return False
+
+    def get_attachment(self, attachment_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get a single attachment by ID.
+
+        Args:
+            attachment_id: Attachment ID
+
+        Returns:
+            Attachment dictionary or None if not found
+        """
+        cursor = self.conn.execute(
+            "SELECT * FROM task_attachments WHERE id = ?",
+            (attachment_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
 
     def close(self):
         """Close the database connection."""
