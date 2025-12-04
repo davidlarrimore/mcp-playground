@@ -11,6 +11,7 @@ A SQLite-backed task management service exposed via Model Context Protocol (MCP)
 - **Task Queue Operations**: Pop highest-priority pending tasks for worker agents
 - **Statistics**: Get counts by task status
 - **Document Attachments**: Attach and manage documents linked to tasks
+- **Default Tasks**: Automatically populated with sample Border Crossing Report tasks
 - **Persistent Storage**: SQLite database in Docker volume
 - **MCP Compatible**: Full Model Context Protocol support via FastMCP
 
@@ -60,6 +61,16 @@ CREATE TABLE task_attachments (
 ```
 
 **Note**: Attachments are automatically deleted when their parent task is deleted (CASCADE).
+
+## Default Tasks
+
+When the database is first created, it's automatically populated with 4 sample Border Crossing Report tasks:
+- **3 completed tasks** for September, October, and November 2024
+- **1 pending task** for December 2024 (priority 10)
+
+All default tasks are in the `monthly-reports` project. This provides immediate data for testing and demonstration purposes.
+
+See [DEFAULT_TASKS.md](DEFAULT_TASKS.md) for details about the default tasks and how to work with them.
 
 ## MCP Tools
 
@@ -521,12 +532,13 @@ SQLite uses file-level locking. If you see "database is locked" errors:
 - Consider connection pooling for high concurrency
 
 ### Container Restart
-The database persists in the `task-data` volume. To reset:
+The database persists in the `task-data` volume. To reset and get fresh default tasks:
 ```bash
-docker-compose down
+docker compose down task-mcp
 docker volume rm mcp-lab_task-data
-docker-compose up -d task-mcp
+docker compose up -d task-mcp
 ```
+The default Border Crossing Report tasks will be automatically created when the container starts.
 
 ### Logs
 View service logs:

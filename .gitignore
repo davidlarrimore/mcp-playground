@@ -49,3 +49,6 @@ docs/*
 /email-mcp/.python-version
 /email-mcp/__pycache__/
 /analytics-mcp/.python-version
+
+
+/.venv*

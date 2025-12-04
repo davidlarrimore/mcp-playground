@@ -27,6 +27,12 @@ class TaskStore:
 
     def _migrate(self):
         """Create the tasks and task_attachments tables if they don't exist."""
+        # Check if this is a new database
+        cursor = self.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'"
+        )
+        is_new_database = cursor.fetchone() is None
+
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,6 +67,98 @@ class TaskStore:
 
         self.conn.commit()
         logger.info("Database schema migrated successfully")
+
+        # If this is a new database, populate with default tasks
+        if is_new_database:
+            self._populate_default_tasks()
+
+    def _populate_default_tasks(self):
+        """Populate the database with default Border Crossing Report tasks."""
+        logger.info("Populating database with default Border Crossing Report tasks")
+
+        # Define default tasks
+        default_tasks = [
+            {
+                "title": "Create September 2024 Border Crossing Report",
+                "description": "Generate monthly border crossing report for September 2024 including traffic statistics, wait times, and incident summaries",
+                "status": "done",
+                "priority": 5,
+                "metadata": json.dumps({
+                    "month": "2024-09",
+                    "report_type": "border_crossing",
+                    "completed_by": "system"
+                }),
+                "project_id": "monthly-reports",
+                "created_at": "2024-09-01T08:00:00.000000",
+                "updated_at": "2024-10-05T14:30:00.000000"
+            },
+            {
+                "title": "Create October 2024 Border Crossing Report",
+                "description": "Generate monthly border crossing report for October 2024 including traffic statistics, wait times, and incident summaries",
+                "status": "done",
+                "priority": 5,
+                "metadata": json.dumps({
+                    "month": "2024-10",
+                    "report_type": "border_crossing",
+                    "completed_by": "system"
+                }),
+                "project_id": "monthly-reports",
+                "created_at": "2024-10-01T08:00:00.000000",
+                "updated_at": "2024-11-05T15:45:00.000000"
+            },
+            {
+                "title": "Create November 2024 Border Crossing Report",
+                "description": "Generate monthly border crossing report for November 2024 including traffic statistics, wait times, and incident summaries",
+                "status": "done",
+                "priority": 5,
+                "metadata": json.dumps({
+                    "month": "2024-11",
+                    "report_type": "border_crossing",
+                    "completed_by": "system"
+                }),
+                "project_id": "monthly-reports",
+                "created_at": "2024-11-01T08:00:00.000000",
+                "updated_at": "2024-12-03T16:20:00.000000"
+            },
+            {
+                "title": "Create December 2024 Border Crossing Report",
+                "description": "Generate monthly border crossing report for December 2024 including traffic statistics, wait times, and incident summaries",
+                "status": "pending",
+                "priority": 10,
+                "metadata": json.dumps({
+                    "month": "2024-12",
+                    "report_type": "border_crossing",
+                    "due_date": "2025-01-05"
+                }),
+                "project_id": "monthly-reports",
+                "created_at": "2024-12-01T08:00:00.000000",
+                "updated_at": "2024-12-01T08:00:00.000000"
+            }
+        ]
+
+        # Insert default tasks
+        for task in default_tasks:
+            self.conn.execute(
+                """
+                INSERT INTO tasks (title, description, status, priority, metadata, project_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    task["title"],
+                    task["description"],
+                    task["status"],
+                    task["priority"],
+                    task["metadata"],
+                    task["project_id"],
+                    task["created_at"],
+                    task["updated_at"]
+                )
+            )
+            task_id = self.conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            logger.info(f"Created default task {task_id}: {task['title']} (status: {task['status']})")
+
+        self.conn.commit()
+        logger.info("Default tasks populated successfully")
 
     def _current_timestamp(self) -> str:
         """Get current timestamp in ISO format."""

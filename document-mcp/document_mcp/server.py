@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastmcp import FastMCP
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.chart import BarChart, LineChart, Reference
 from openpyxl.styles import Alignment, Font, PatternFill
 from docx import Document
@@ -23,7 +23,18 @@ logger = logging.getLogger("document-mcp")
 
 WORKSPACE = Path(os.getenv("WORKSPACE", "/workspace")).resolve()
 
-mcp = FastMCP("document")
+mcp = FastMCP(
+    "document",
+    instructions=(
+        "Document helper for combining user-uploaded files and producing reports. "
+        "Always read requested workspace files first. "
+        "Data is required: when creating or merging workbooks you must supply real tabular data (columns + rows). "
+        "Upload user files with save_uploaded_file (base64 content, keep extensions). "
+        "To merge multiple Excel files, first upload them, then call combine_excel_files with the file paths. "
+        "To build a workbook from data the model already has, call create_excel_workbook with non-empty columns and rows. "
+        "Use create_word_report for formatted summaries and create_pdf_from_html for HTML-to-PDF."
+    ),
+)
 
 
 def _with_download_metadata(output_path: Path, message: str, extra: Optional[dict] = None, download_filename: Optional[str] = None) -> dict:
@@ -53,6 +64,33 @@ def _with_download_metadata(output_path: Path, message: str, extra: Optional[dic
         logger.error(f"Error generating download URL: {e}")
 
     return result
+
+
+def _resolve_path(path_str: str) -> Path:
+    """Resolve a workspace-relative path and prevent directory escape."""
+    candidate = (WORKSPACE / path_str).resolve()
+    if not candidate.is_relative_to(WORKSPACE):
+        raise ValueError("Path must stay within the workspace")
+    return candidate
+
+
+def _load_excel_table(path: Path) -> tuple[list[str], list[dict]]:
+    """Load the first sheet of an Excel file as headers plus row dictionaries."""
+    wb = load_workbook(path, data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return [], []
+
+    headers = [str(h).strip() if h is not None else "" for h in rows[0]]
+    headers = [h for h in headers if h]  # drop empty header cells
+    data_rows = []
+    for row in rows[1:]:
+        row_dict = {}
+        for idx, header in enumerate(headers):
+            row_dict[header] = row[idx] if idx < len(row) else None
+        data_rows.append(row_dict)
+    return headers, data_rows
 
 
 @mcp.tool
@@ -125,17 +163,23 @@ async def create_excel_workbook(
     for sheet_def in sheets:
         ws = wb.create_sheet(title=sheet_def["name"])
         data = sheet_def["data"]
+        columns = data.get("columns") or []
+        rows = data.get("rows") or []
+        if not columns:
+            raise ValueError("create_excel_workbook requires non-empty 'columns'.")
+        if not rows:
+            raise ValueError("create_excel_workbook requires at least one row of data.")
 
         # Write headers
-        for col_idx, col_name in enumerate(data["columns"], 1):
+        for col_idx, col_name in enumerate(columns, 1):
             cell = ws.cell(row=1, column=col_idx, value=col_name)
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill(start_color="366092", fill_type="solid")
             cell.alignment = Alignment(horizontal="center")
 
         # Write data rows
-        for row_idx, row_data in enumerate(data["rows"], 2):
-            for col_idx, col_name in enumerate(data["columns"], 1):
+        for row_idx, row_data in enumerate(rows, 2):
+            for col_idx, col_name in enumerate(columns, 1):
                 ws.cell(row=row_idx, column=col_idx, value=row_data.get(col_name))
 
         # Auto-adjust column widths
@@ -293,6 +337,96 @@ async def create_pdf_from_html(
     return _with_download_metadata(
         output_path,
         f"PDF created successfully: {output_filename}"
+    )
+
+
+@mcp.tool
+async def combine_excel_files(
+    source_files: List[str],
+    output_filename: str = "combined.xlsx",
+    sheet_name: str = "Combined",
+    include_source_column: bool = True,
+) -> dict:
+    """
+    Combine the first sheet of multiple Excel files into a single sheet.
+
+    Args:
+        source_files: Workspace-relative Excel file paths to merge.
+        output_filename: Name of the merged workbook to write.
+        sheet_name: Name of the consolidated sheet.
+        include_source_column: Append a column indicating which file each row came from.
+    """
+    if not source_files:
+        raise ValueError("Provide at least one Excel file to combine.")
+
+    columns: list[str] = []
+    combined_rows: list[tuple[dict, str]] = []
+
+    for path_str in source_files:
+        file_path = _resolve_path(path_str)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {path_str}")
+        if file_path.suffix.lower() not in {".xlsx", ".xlsm"}:
+            raise ValueError(f"File must be an Excel workbook: {path_str}")
+
+        headers, rows = _load_excel_table(file_path)
+        if not headers:
+            logger.warning("Skipped empty or headerless file: %s", path_str)
+            continue
+
+        for header in headers:
+            if header not in columns:
+                columns.append(header)
+
+        for row in rows:
+            combined_rows.append((row, file_path.name))
+
+    if not combined_rows:
+        raise ValueError("No row data found in the provided files.")
+
+    source_col = "Source"
+    if include_source_column and source_col in columns:
+        source_col = "SourceFile"
+    if include_source_column:
+        columns.append(source_col)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+
+    # Write headers
+    for col_idx, col_name in enumerate(columns, 1):
+        cell = ws.cell(row=1, column=col_idx, value=col_name)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="4BACC6", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
+
+    # Write rows
+    for row_idx, (row_data, source_name) in enumerate(combined_rows, start=2):
+        for col_idx, col_name in enumerate(columns, 1):
+            value = row_data.get(col_name)
+            if include_source_column and col_name == source_col:
+                value = source_name
+            ws.cell(row=row_idx, column=col_idx, value=value)
+
+    # Auto-fit column widths
+    for col in ws.columns:
+        max_length = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = max_length + 2
+
+    output_path = WORKSPACE / output_filename
+    wb.save(output_path)
+    logger.info("Combined %d rows from %d files into %s", len(combined_rows), len(source_files), output_path)
+
+    return _with_download_metadata(
+        output_path,
+        f"Merged {len(combined_rows)} row(s) from {len(source_files)} file(s) into '{output_filename}'.",
+        extra={
+            "rows": len(combined_rows),
+            "files": len(source_files),
+            "columns": columns,
+        },
+        download_filename=output_filename,
     )
 
 

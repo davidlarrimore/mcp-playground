@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+import anyio
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
 
@@ -22,6 +23,12 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
 logger = logging.getLogger("python-sdk-mcp")
+# Silence noisy ClosedResourceError logs that occur during normal stream shutdown
+logging.getLogger("mcp.server.streamable_http").addFilter(
+    lambda record: not (
+        record.exc_info and isinstance(record.exc_info[1], anyio.ClosedResourceError)
+    )
+)
 
 WORKSPACE = Path(os.getenv("WORKSPACE", "/workspace")).resolve()
 HOST = os.getenv("MCP_HOST", "0.0.0.0")
