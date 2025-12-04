@@ -6,11 +6,12 @@ This repo provides a complete MCP (Model Context Protocol) demonstration stack w
 
 ## Features
 
-**Core Services (4):**
+**Core Services (5):**
 - ⏰ Time & timezone operations
 - 📁 Filesystem operations (read/write/manage files)
 - 🧠 Persistent memory storage
 - 📧 Email with attachments via MailHog
+- ✅ Task management with SQLite-backed storage
 
 **Document Generation (3):**
 - 📄 Document MCP - Create Excel workbooks, Word reports, or HTML-to-PDF in one service
@@ -28,6 +29,7 @@ This repo provides a complete MCP (Model Context Protocol) demonstration stack w
 - MailHog (SMTP sink + web UI) on host ports `2005` (UI) / `2025` (SMTP)
 - Reference MCP servers (container names): `time-mcp`, `filesystem-mcp`, `memory-mcp`
 - Custom Email HTTP service: `email-mcp` (POST `/send`)
+- **Task Management Service**: `task-mcp` - SQLite-backed task registry with CRUD operations
 - **Document Generation Services**: `document-mcp`, `analytics-mcp`
 - MCPO OpenAPI proxy that wraps all MCP servers
 - FastMCP 2.0 powering the custom MCP interfaces (bridged to Streamable HTTP)
@@ -69,6 +71,7 @@ make nuke
 - Email MCP: `http://localhost:${EMAIL_MCP_PORT:-2004}`
 - MailHog UI: `http://localhost:${MAILHOG_WEB_PORT:-2005}`
 - **Document MCP**: `http://localhost:${DOCUMENT_MCP_PORT:-2006}`
+- **Task MCP**: `http://localhost:${TASK_MCP_PORT:-2007}`
 - **Analytics MCP**: `http://localhost:${ANALYTICS_MCP_PORT:-2009}`
 - **Python SDK MCP**: `http://localhost:${PYTHON_SDK_MCP_PORT:-2011}`
 - MCPO OpenAPI proxy: `http://localhost:${MCPO_PORT:-2010}`
@@ -165,6 +168,54 @@ See [docs/SIGNED_DOWNLOADS.md](docs/SIGNED_DOWNLOADS.md) for complete technical 
 - Files created by one service are immediately accessible to all others
 - **Important:** When using file paths in tool calls, do NOT include `docs/` prefix (e.g., use `"report.xlsx"` not `"docs/report.xlsx"`)
 
+## Task Management Service
+
+### Task MCP (`task-mcp`)
+- Container: `task-mcp`
+- Port: `${TASK_MCP_PORT:-2007}`
+- MCP endpoint: `http://localhost:2007/mcp`
+- Health: `GET /healthz`
+- Database: SQLite stored in persistent volume `task-data`
+- **Tools:**
+  - `task_create` - Create a new task with title, description, priority, metadata, and project_id
+  - `task_get` - Get a single task by ID
+  - `task_list` - List tasks with filtering (status, project_id) and sorting
+  - `task_update` - Update task fields (status, priority, description, etc.)
+  - `task_delete` - Delete a task permanently
+  - `task_pop_next` - Get highest-priority pending task and mark as in_progress
+  - `task_stats` - Get task statistics (counts by status)
+
+**Task Schema:**
+- `id` - Auto-increment integer (primary key)
+- `title` - Task title (required)
+- `description` - Optional task description
+- `status` - Task status: `pending`, `in_progress`, `done`, `cancelled`
+- `priority` - Integer priority (higher = more important, default 0)
+- `metadata` - Optional JSON metadata for custom fields, tags, etc.
+- `project_id` - Optional project/group identifier
+- `created_at`, `updated_at` - ISO timestamps
+
+**Example Usage:**
+```json
+// Create a task
+task_create({
+  "title": "Implement user authentication",
+  "description": "Add JWT-based auth with refresh tokens",
+  "priority": 10,
+  "metadata": {"tags": ["security", "backend"], "estimated_hours": 8},
+  "project_id": "api-v2"
+})
+
+// List high-priority pending tasks
+task_list({"status": "pending", "order_by_priority": true, "limit": 5})
+
+// Update task status
+task_update({"task_id": 5, "status": "in_progress"})
+
+// Pop next task for processing
+task_pop_next({"project_id": "api-v2"})
+```
+
 ### Working with Uploaded Files
 When users upload files via Open WebUI chat, use the `save_uploaded_file` tool (available in all 4 services) to save them to the workspace:
 
@@ -209,7 +260,7 @@ make email-local-stop
 - Routes (per tool): `/time`, `/filesystem`, `/memory`, `/email`, `/document`, `/analytics`, `/python-sdk` with generated OpenAPI docs at `/<tool>/docs` (e.g., `http://localhost:2010/analytics/docs`) and schemas at `/<tool>/openapi.json`.
 - How it connects: proxies the Streamable HTTP endpoints of all MCP services on the same Docker network.
 - **All MCP services accessible through MCPO:**
-  - Core services: `time-mcp`, `filesystem-mcp`, `memory-mcp`, `email-mcp`
+  - Core services: `time-mcp`, `filesystem-mcp`, `memory-mcp`, `email-mcp`, `task-mcp`
   - Document + data services: `document-mcp`, `analytics-mcp`, `python-sdk-mcp`
 - Open WebUI integration: add an **OpenAPI** server pointing to `http://localhost:2010/<tool>/openapi.json` (or `http://mcpo:8000/<tool>/openapi.json` if Open WebUI runs on `mcp-net`). Repeat per tool if you want individual OpenAPI servers, or use MCP Streamable HTTP type to add all at once.
 
@@ -230,6 +281,7 @@ make email-local-stop
     - `memory` → `http://memory-mcp:8000/mcp` (or `http://host.docker.internal:2003/mcp`)
     - `email` → `http://email-mcp:8000/mcp` (or `http://host.docker.internal:2004/mcp`)
     - `document` → `http://document-mcp:8000/mcp` (or `http://host.docker.internal:2006/mcp`)
+    - `task` → `http://task-mcp:8000/mcp` (or `http://host.docker.internal:2007/mcp`)
     - `analytics` → `http://analytics-mcp:8000/mcp` (or `http://host.docker.internal:2009/mcp`)
     - `python-sdk` → `http://python-sdk-mcp:8000/mcp` (or `http://host.docker.internal:2011/mcp`)
   - **Option 2 - Via MCPO (Recommended)**:
@@ -263,6 +315,7 @@ Run these after `make up`:
 
   # Document generation services
   curl http://localhost:2006/healthz  # document
+  curl http://localhost:2007/healthz  # task
   curl http://localhost:2009/healthz  # analytics
 
   # Python SDK demo

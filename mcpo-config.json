@@ -20,6 +20,10 @@
       "type": "streamable-http",
       "url": "http://document-mcp:8000/mcp"
     },
+    "task": {
+      "type": "streamable-http",
+      "url": "http://task-mcp:8000/mcp"
+    },
     "analytics": {
       "type": "streamable-http",
       "url": "http://analytics-mcp:8000/mcp"

@@ -6,6 +6,7 @@ networks:
 
 volumes:
   memory-data:
+  task-data:
 
 services:
   mailhog:
@@ -199,6 +200,26 @@ services:
     volumes:
       - ./docs:/workspace:ro
       - ./shared:/app/shared:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  task-mcp:
+    build:
+      context: ./task-mcp
+    container_name: task-mcp
+    restart: unless-stopped
+    networks:
+      - mcp-net
+    ports:
+      - "${TASK_MCP_PORT:-2007}:8000"
+    environment:
+      DB_PATH: /data/tasks.db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - task-data:/data
     logging:
       driver: "json-file"
       options:
