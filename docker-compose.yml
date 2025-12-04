@@ -117,59 +117,15 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  excel-mcp:
+  document-mcp:
     build:
-      context: ./excel-mcp
-    container_name: excel-mcp
+      context: ./document-mcp
+    container_name: document-mcp
     restart: unless-stopped
     networks:
       - mcp-net
     ports:
-      - "${EXCEL_MCP_PORT:-2006}:8000"
-    environment:
-      WORKSPACE: /workspace
-      DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-    volumes:
-      - ./docs:/workspace:rw
-      - ./shared:/app/shared:ro
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  word-mcp:
-    build:
-      context: ./word-mcp
-    container_name: word-mcp
-    restart: unless-stopped
-    networks:
-      - mcp-net
-    ports:
-      - "${WORD_MCP_PORT:-2007}:8000"
-    environment:
-      WORKSPACE: /workspace
-      DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-    volumes:
-      - ./docs:/workspace:rw
-      - ./shared:/app/shared:ro
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  pdf-mcp:
-    build:
-      context: ./pdf-mcp
-    container_name: pdf-mcp
-    restart: unless-stopped
-    networks:
-      - mcp-net
-    ports:
-      - "${PDF_MCP_PORT:-2008}:8000"
+      - "${DOCUMENT_MCP_PORT:-2006}:8000"
     environment:
       WORKSPACE: /workspace
       DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}

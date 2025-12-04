@@ -1,8 +1,8 @@
 # MCP Lab - Dockerized Demo Stack
 
-This repo provides a complete MCP (Model Context Protocol) demonstration stack with 8 professional services running on Docker. It includes core utilities (time, filesystem, memory, email) plus advanced document generation capabilities (Excel, Word, PDF, analytics).
+This repo provides a complete MCP (Model Context Protocol) demonstration stack with 7 professional services running on Docker. It includes core utilities (time, filesystem, memory, email) plus a unified document generator (Excel, Word, PDF) and analytics/presentation tools.
 
-**✨ New:** Professional document generation services with Excel workbooks, Word reports, PDF creation, PowerPoint presentations, and data analytics with chart generation! All generated documents include signed download URLs for easy sharing.
+**✨ New:** Unified document service covering Excel workbooks, Word reports, and PDF creation in one MCP endpoint—plus PowerPoint presentations and data analytics with chart generation. All generated documents include signed download URLs for easy sharing.
 
 ## Features
 
@@ -12,10 +12,8 @@ This repo provides a complete MCP (Model Context Protocol) demonstration stack w
 - 🧠 Persistent memory storage
 - 📧 Email with attachments via MailHog
 
-**Document Generation (5):**
-- 📊 Excel - Create workbooks with charts and formatting
-- 📝 Word - Generate professional reports with tables
-- 📄 PDF - Convert HTML to high-quality PDFs
+**Document Generation (3):**
+- 📄 Document MCP - Create Excel workbooks, Word reports, or HTML-to-PDF in one service
 - 📊 PowerPoint - Create presentations with slides, tables, and images
 - 📈 Analytics - Merge data, calculate stats, create charts
 - 🔗 Signed Downloads - Secure, time-limited download URLs for all generated files
@@ -30,7 +28,7 @@ This repo provides a complete MCP (Model Context Protocol) demonstration stack w
 - MailHog (SMTP sink + web UI) on host ports `2005` (UI) / `2025` (SMTP)
 - Reference MCP servers (container names): `time-mcp`, `filesystem-mcp`, `memory-mcp`
 - Custom Email HTTP service: `email-mcp` (POST `/send`)
-- **Document Generation Services**: `excel-mcp`, `word-mcp`, `pdf-mcp`, `analytics-mcp`
+- **Document Generation Services**: `document-mcp`, `analytics-mcp`
 - MCPO OpenAPI proxy that wraps all MCP servers
 - FastMCP 2.0 powering the custom MCP interfaces (bridged to Streamable HTTP)
 - Shared Docker network: `mcp-net`
@@ -70,9 +68,7 @@ make nuke
 - Memory MCP: `http://localhost:${MEMORY_MCP_PORT:-2003}`
 - Email MCP: `http://localhost:${EMAIL_MCP_PORT:-2004}`
 - MailHog UI: `http://localhost:${MAILHOG_WEB_PORT:-2005}`
-- **Excel MCP**: `http://localhost:${EXCEL_MCP_PORT:-2006}`
-- **Word MCP**: `http://localhost:${WORD_MCP_PORT:-2007}`
-- **PDF MCP**: `http://localhost:${PDF_MCP_PORT:-2008}`
+- **Document MCP**: `http://localhost:${DOCUMENT_MCP_PORT:-2006}`
 - **Analytics MCP**: `http://localhost:${ANALYTICS_MCP_PORT:-2009}`
 - **Python SDK MCP**: `http://localhost:${PYTHON_SDK_MCP_PORT:-2011}`
 - MCPO OpenAPI proxy: `http://localhost:${MCPO_PORT:-2010}`
@@ -104,33 +100,17 @@ curl -X POST http://localhost:2004/send \
 
 ## Document Generation Services
 
-Four new MCP services provide professional document creation and data analysis capabilities. All services share the `./docs` workspace and are built on FastMCP 2.0.
+Two MCP services provide professional document creation and data analysis capabilities. All services share the `./docs` workspace and are built on FastMCP 2.0.
 
-### Excel MCP (`excel-mcp`)
-- Container: `excel-mcp`
-- Port: `${EXCEL_MCP_PORT:-2006}`
+### Document MCP (`document-mcp`)
+- Container: `document-mcp`
+- Port: `${DOCUMENT_MCP_PORT:-2006}`
 - MCP endpoint: `http://localhost:2006/mcp`
 - Health: `GET /healthz`
 - **Tools:**
   - `save_uploaded_file` - Save uploaded files to workspace (base64)
   - `create_excel_workbook` - Create Excel files with formatted sheets, charts (bar/line), and auto-sizing
-
-### Word MCP (`word-mcp`)
-- Container: `word-mcp`
-- Port: `${WORD_MCP_PORT:-2007}`
-- MCP endpoint: `http://localhost:2007/mcp`
-- Health: `GET /healthz`
-- **Tools:**
-  - `save_uploaded_file` - Save uploaded files to workspace (base64)
   - `create_word_report` - Create Word documents with titles, sections, tables, bullet points, and formatting
-
-### PDF MCP (`pdf-mcp`)
-- Container: `pdf-mcp`
-- Port: `${PDF_MCP_PORT:-2008}`
-- MCP endpoint: `http://localhost:2008/mcp`
-- Health: `GET /healthz`
-- **Tools:**
-  - `save_uploaded_file` - Save uploaded files to workspace (base64)
   - `create_pdf_from_html` - Convert HTML (string or file) to PDF with optional CSS styling
 
 ### Analytics MCP (`analytics-mcp`)
@@ -226,11 +206,11 @@ make email-local-stop
 ## MCPO OpenAPI proxy (wraps all MCP servers)
 - Container: `mcpo`
 - Base URL: `http://localhost:${MCPO_PORT:-2010}`
-- Routes (per tool): `/time`, `/filesystem`, `/memory`, `/email`, `/excel`, `/word`, `/pdf`, `/analytics` with generated OpenAPI docs at `/<tool>/docs` (e.g., `http://localhost:2010/analytics/docs`) and schemas at `/<tool>/openapi.json`.
+- Routes (per tool): `/time`, `/filesystem`, `/memory`, `/email`, `/document`, `/analytics`, `/python-sdk` with generated OpenAPI docs at `/<tool>/docs` (e.g., `http://localhost:2010/analytics/docs`) and schemas at `/<tool>/openapi.json`.
 - How it connects: proxies the Streamable HTTP endpoints of all MCP services on the same Docker network.
-- **All 8 MCP services accessible through MCPO:**
+- **All MCP services accessible through MCPO:**
   - Core services: `time-mcp`, `filesystem-mcp`, `memory-mcp`, `email-mcp`
-  - Document services: `excel-mcp`, `word-mcp`, `pdf-mcp`, `analytics-mcp`
+  - Document + data services: `document-mcp`, `analytics-mcp`, `python-sdk-mcp`
 - Open WebUI integration: add an **OpenAPI** server pointing to `http://localhost:2010/<tool>/openapi.json` (or `http://mcpo:8000/<tool>/openapi.json` if Open WebUI runs on `mcp-net`). Repeat per tool if you want individual OpenAPI servers, or use MCP Streamable HTTP type to add all at once.
 
 ## Notes for Open WebUI wiring
@@ -249,13 +229,12 @@ make email-local-stop
     - `filesystem` → `http://filesystem-mcp:8000/mcp` (or `http://host.docker.internal:2002/mcp`)
     - `memory` → `http://memory-mcp:8000/mcp` (or `http://host.docker.internal:2003/mcp`)
     - `email` → `http://email-mcp:8000/mcp` (or `http://host.docker.internal:2004/mcp`)
-    - `excel` → `http://excel-mcp:8000/mcp` (or `http://host.docker.internal:2006/mcp`)
-    - `word` → `http://word-mcp:8000/mcp` (or `http://host.docker.internal:2007/mcp`)
-    - `pdf` → `http://pdf-mcp:8000/mcp` (or `http://host.docker.internal:2008/mcp`)
+    - `document` → `http://document-mcp:8000/mcp` (or `http://host.docker.internal:2006/mcp`)
     - `analytics` → `http://analytics-mcp:8000/mcp` (or `http://host.docker.internal:2009/mcp`)
+    - `python-sdk` → `http://python-sdk-mcp:8000/mcp` (or `http://host.docker.internal:2011/mcp`)
   - **Option 2 - Via MCPO (Recommended)**:
     - Single URL: `http://mcpo:8000/mcp` (or `http://host.docker.internal:2010/mcp`)
-    - This exposes all 8 services through one endpoint
+    - This exposes all services through one endpoint
 - Click "Test connection" for each; you should see the tool list returned.
 - To use the OpenAPI proxy instead, add OpenAPI servers pointing at `http://localhost:2010/<tool>/openapi.json` (or `http://mcpo:8000/<tool>/openapi.json` on `mcp-net`), where `<tool>` is `time`, `filesystem`, `memory`, `email`, `excel`, `word`, `pdf`, or `analytics`.
 
@@ -283,9 +262,7 @@ Run these after `make up`:
   curl http://localhost:2004/healthz  # email
 
   # Document generation services
-  curl http://localhost:2006/healthz  # excel
-  curl http://localhost:2007/healthz  # word
-  curl http://localhost:2008/healthz  # pdf
+  curl http://localhost:2006/healthz  # document
   curl http://localhost:2009/healthz  # analytics
 
   # Python SDK demo
@@ -296,7 +273,7 @@ Run these after `make up`:
   ```bash
   curl -I http://localhost:2010/time/docs
   curl -I http://localhost:2010/analytics/docs
-  curl -I http://localhost:2010/excel/docs
+  curl -I http://localhost:2010/document/docs
   ```
   Each should return HTTP 200
 - Filesystem container sees demo data:

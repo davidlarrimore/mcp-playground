@@ -4,7 +4,7 @@ This document explains how the signed download URL feature works for generated d
 
 ## Overview
 
-When you create documents using any of the document generation MCP services (Excel, Word, PDF, Analytics), the service automatically generates a signed download URL. This URL allows secure, time-limited access to download the generated file without requiring authentication.
+When you create documents using the document MCP (Excel, Word, PDF) or the analytics MCP, the service automatically generates a signed download URL. This URL allows secure, time-limited access to download the generated file without requiring authentication.
 
 ## Features
 
@@ -227,7 +227,7 @@ docker restart download-service
    - HTTP server that validates and serves files
    - Runs independently from MCP services
 
-3. **MCP Services** (Excel, Word, PDF, Analytics):
+3. **MCP Services** (Document, Analytics):
    - Generate documents
    - Call shared module to create signed URLs
    - Return URLs in responses

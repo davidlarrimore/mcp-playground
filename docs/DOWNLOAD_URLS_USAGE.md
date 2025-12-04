@@ -6,7 +6,7 @@ This guide shows how the signed download URL feature integrates with Open WebUI.
 
 When you ask Open WebUI to create a document using any of the MCP document generation tools, the tool automatically:
 
-1. Creates the requested document (Excel, Word, PDF, or PowerPoint)
+1. Creates the requested document (Excel/Word/PDF via the Document MCP, or PowerPoint via Analytics)
 2. Generates a secure, signed download URL
 3. Returns a user-friendly message with the download link
 
@@ -16,7 +16,7 @@ When you ask Open WebUI to create a document using any of the MCP document gener
 
 **User:** "Create an Excel spreadsheet with Q4 sales data"
 
-**Assistant:** *[Uses Excel MCP tool]*
+**Assistant:** *[Uses Document MCP tool]*
 
 **Tool Response (shown to user):**
 ```
@@ -65,22 +65,11 @@ The `message` field is what Open WebUI displays to the user, making the download
 
 All document generation services provide signed download URLs:
 
-### Excel MCP
+### Document MCP
 ```
-User: "Create a sales report spreadsheet"
-→ Returns XLSX file with download link
-```
-
-### Word MCP
-```
-User: "Generate a professional business report"
-→ Returns DOCX file with download link
-```
-
-### PDF MCP
-```
-User: "Convert this HTML to PDF"
-→ Returns PDF file with download link
+User: "Create a sales report spreadsheet" → Returns XLSX file with download link
+User: "Generate a professional business report" → Returns DOCX file with download link
+User: "Convert this HTML to PDF" → Returns PDF file with download link
 ```
 
 ### Analytics MCP - Charts
