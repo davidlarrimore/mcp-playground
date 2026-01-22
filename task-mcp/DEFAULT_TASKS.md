@@ -6,43 +6,43 @@ The task-mcp database is **automatically populated** with Border Crossing Report
 
 ### Completed Tasks (3)
 
-1. **September 2024 Border Crossing Report** (Task ID: 8)
+1. **September 2025 Border Crossing Report** (Task ID: 1)
    - Status: DONE
    - Priority: 5
-   - Created: 2024-09-01
-   - Completed: 2024-10-05
+   - Created: 2025-09-01
+   - Completed: 2025-10-05
    - Metadata:
      ```json
      {
-       "month": "2024-09",
+       "month": "2025-09",
        "report_type": "border_crossing",
        "completed_by": "system"
      }
      ```
 
-2. **October 2024 Border Crossing Report** (Task ID: 9)
+2. **October 2025 Border Crossing Report** (Task ID: 2)
    - Status: DONE
    - Priority: 5
-   - Created: 2024-10-01
-   - Completed: 2024-11-05
+   - Created: 2025-10-01
+   - Completed: 2025-11-05
    - Metadata:
      ```json
      {
-       "month": "2024-10",
+       "month": "2025-10",
        "report_type": "border_crossing",
        "completed_by": "system"
      }
      ```
 
-3. **November 2024 Border Crossing Report** (Task ID: 10)
+3. **November 2025 Border Crossing Report** (Task ID: 3)
    - Status: DONE
    - Priority: 5
-   - Created: 2024-11-01
-   - Completed: 2024-12-03
+   - Created: 2025-11-01
+   - Completed: 2025-12-03
    - Metadata:
      ```json
      {
-       "month": "2024-11",
+       "month": "2025-11",
        "report_type": "border_crossing",
        "completed_by": "system"
      }
@@ -50,17 +50,17 @@ The task-mcp database is **automatically populated** with Border Crossing Report
 
 ### Pending Task (1)
 
-4. **December 2024 Border Crossing Report** (Task ID: 11)
+4. **December 2025 Border Crossing Report** (Task ID: 4)
    - Status: PENDING
    - Priority: 10 (higher priority for current month)
-   - Created: 2024-12-01
-   - Due Date: 2025-01-05
+   - Created: 2025-12-01
+   - Due Date: 2026-01-05
    - Metadata:
      ```json
      {
-       "month": "2024-12",
+       "month": "2025-12",
        "report_type": "border_crossing",
-       "due_date": "2025-01-05"
+       "due_date": "2026-01-05"
      }
      ```
 
@@ -129,10 +129,10 @@ These tasks are ready to have documents attached. For example, to attach a compl
 ```python
 # Attach the November report document
 task_attach_document(
-    task_id=10,  # November task
-    document_id="doc_nov_2024_border_report",
-    filename="Border_Crossing_Report_November_2024.pdf",
-    description="Final border crossing report for November 2024"
+    task_id=3,  # November task
+    document_id="doc_nov_2025_border_report",
+    filename="Border_Crossing_Report_November_2025.pdf",
+    description="Final border crossing report for November 2025"
 )
 ```
 
@@ -143,7 +143,7 @@ When working on the December report:
 1. Get the pending task:
    ```python
    task = task_pop_next(project_id="monthly-reports")
-   # Returns task ID 11 and marks it as "in_progress"
+   # Returns task ID 4 and marks it as "in_progress"
    ```
 
 2. Work on generating the report...
@@ -151,23 +151,23 @@ When working on the December report:
 3. Attach the completed report document:
    ```python
    task_attach_document(
-       task_id=11,
-       document_id="doc_dec_2024_border_report",
-       filename="Border_Crossing_Report_December_2024.pdf",
-       description="Final border crossing report for December 2024"
+       task_id=4,
+       document_id="doc_dec_2025_border_report",
+       filename="Border_Crossing_Report_December_2025.pdf",
+       description="Final border crossing report for December 2025"
    )
    ```
 
 4. Mark the task as complete:
    ```python
    task_update(
-       task_id=11,
+       task_id=4,
        status="done",
        metadata={
-           "month": "2024-12",
+           "month": "2025-12",
            "report_type": "border_crossing",
            "completed_by": "agent",
-           "completion_date": "2024-12-20"
+           "completion_date": "2025-12-20"
        }
    )
    ```
@@ -175,10 +175,10 @@ When working on the December report:
 5. Create next month's task:
    ```python
    task_create(
-       title="Create January 2025 Border Crossing Report",
-       description="Generate monthly border crossing report for January 2025...",
+       title="Create January 2026 Border Crossing Report",
+       description="Generate monthly border crossing report for January 2026...",
        priority=10,
-       metadata={"month": "2025-01", "report_type": "border_crossing"},
+       metadata={"month": "2026-01", "report_type": "border_crossing"},
        project_id="monthly-reports"
    )
    ```

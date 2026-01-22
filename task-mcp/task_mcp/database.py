@@ -79,60 +79,60 @@ class TaskStore:
         # Define default tasks
         default_tasks = [
             {
-                "title": "Create September 2024 Border Crossing Report",
-                "description": "Generate monthly border crossing report for September 2024 including traffic statistics, wait times, and incident summaries",
+                "title": "Create September 2025 Border Crossing Report",
+                "description": "Generate monthly border crossing report for September 2025 including traffic statistics, wait times, and incident summaries",
                 "status": "done",
                 "priority": 5,
                 "metadata": json.dumps({
-                    "month": "2024-09",
+                    "month": "2025-09",
                     "report_type": "border_crossing",
                     "completed_by": "system"
                 }),
                 "project_id": "monthly-reports",
-                "created_at": "2024-09-01T08:00:00.000000",
-                "updated_at": "2024-10-05T14:30:00.000000"
+                "created_at": "2025-09-01T08:00:00.000000",
+                "updated_at": "2025-10-05T14:30:00.000000"
             },
             {
-                "title": "Create October 2024 Border Crossing Report",
-                "description": "Generate monthly border crossing report for October 2024 including traffic statistics, wait times, and incident summaries",
+                "title": "Create October 2025 Border Crossing Report",
+                "description": "Generate monthly border crossing report for October 2025 including traffic statistics, wait times, and incident summaries",
                 "status": "done",
                 "priority": 5,
                 "metadata": json.dumps({
-                    "month": "2024-10",
+                    "month": "2025-10",
                     "report_type": "border_crossing",
                     "completed_by": "system"
                 }),
                 "project_id": "monthly-reports",
-                "created_at": "2024-10-01T08:00:00.000000",
-                "updated_at": "2024-11-05T15:45:00.000000"
+                "created_at": "2025-10-01T08:00:00.000000",
+                "updated_at": "2025-11-05T15:45:00.000000"
             },
             {
-                "title": "Create November 2024 Border Crossing Report",
-                "description": "Generate monthly border crossing report for November 2024 including traffic statistics, wait times, and incident summaries",
+                "title": "Create November 2025 Border Crossing Report",
+                "description": "Generate monthly border crossing report for November 2025 including traffic statistics, wait times, and incident summaries",
                 "status": "done",
                 "priority": 5,
                 "metadata": json.dumps({
-                    "month": "2024-11",
+                    "month": "2025-11",
                     "report_type": "border_crossing",
                     "completed_by": "system"
                 }),
                 "project_id": "monthly-reports",
-                "created_at": "2024-11-01T08:00:00.000000",
-                "updated_at": "2024-12-03T16:20:00.000000"
+                "created_at": "2025-11-01T08:00:00.000000",
+                "updated_at": "2025-12-03T16:20:00.000000"
             },
             {
-                "title": "Create December 2024 Border Crossing Report",
-                "description": "Generate monthly border crossing report for December 2024 including traffic statistics, wait times, and incident summaries",
+                "title": "Create December 2025 Border Crossing Report",
+                "description": "Generate monthly border crossing report for December 2025 including traffic statistics, wait times, and incident summaries",
                 "status": "pending",
                 "priority": 10,
                 "metadata": json.dumps({
-                    "month": "2024-12",
+                    "month": "2025-12",
                     "report_type": "border_crossing",
-                    "due_date": "2025-01-05"
+                    "due_date": "2026-01-05"
                 }),
                 "project_id": "monthly-reports",
-                "created_at": "2024-12-01T08:00:00.000000",
-                "updated_at": "2024-12-01T08:00:00.000000"
+                "created_at": "2025-12-01T08:00:00.000000",
+                "updated_at": "2025-12-01T08:00:00.000000"
             }
         ]
 

@@ -14,10 +14,10 @@ The task-mcp server has been successfully configured with automatic default task
 
 **Tasks Created:**
 ```
-✓ [1] September 2024 Border Crossing Report (DONE)
-✓ [2] October 2024 Border Crossing Report (DONE)
-✓ [3] November 2024 Border Crossing Report (DONE)
-○ [4] December 2024 Border Crossing Report (PENDING - Priority 10)
+✓ [1] September 2025 Border Crossing Report (DONE)
+✓ [2] October 2025 Border Crossing Report (DONE)
+✓ [3] November 2025 Border Crossing Report (DONE)
+○ [4] December 2025 Border Crossing Report (PENDING - Priority 10)
 ```
 
 **Project:** All tasks in `monthly-reports` project
@@ -48,10 +48,10 @@ docker logs task-mcp | grep -i "populating\|created default task"
 Expected output:
 ```
 Populating database with default Border Crossing Report tasks
-Created default task 1: Create September 2024 Border Crossing Report (status: done)
-Created default task 2: Create October 2024 Border Crossing Report (status: done)
-Created default task 3: Create November 2024 Border Crossing Report (status: done)
-Created default task 4: Create December 2024 Border Crossing Report (status: pending)
+Created default task 1: Create September 2025 Border Crossing Report (status: done)
+Created default task 2: Create October 2025 Border Crossing Report (status: done)
+Created default task 3: Create November 2025 Border Crossing Report (status: done)
+Created default task 4: Create December 2025 Border Crossing Report (status: pending)
 Default tasks populated successfully
 ```
 

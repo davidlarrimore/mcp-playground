@@ -65,8 +65,8 @@ CREATE TABLE task_attachments (
 ## Default Tasks
 
 When the database is first created, it's automatically populated with 4 sample Border Crossing Report tasks:
-- **3 completed tasks** for September, October, and November 2024
-- **1 pending task** for December 2024 (priority 10)
+- **3 completed tasks** for September, October, and November 2025
+- **1 pending task** for December 2025 (priority 10)
 
 All default tasks are in the `monthly-reports` project. This provides immediate data for testing and demonstration purposes.
 
@@ -369,21 +369,21 @@ result = task_create({
     "title": "Review Q1 Project Proposal",
     "description": "Review and provide feedback on the Q1 proposal",
     "priority": 10,
-    "project_id": "planning-2024"
+    "project_id": "planning-2025"
 })
 task_id = result["task_id"]
 
 # Attach related documents (assuming documents are already uploaded to document-mcp)
 task_attach_document({
     "task_id": task_id,
-    "document_id": "doc_proposal_q1_2024",
+    "document_id": "doc_proposal_q1_2025",
     "filename": "Q1_Proposal.pdf",
     "description": "Main project proposal document"
 })
 
 task_attach_document({
     "task_id": task_id,
-    "document_id": "doc_budget_q1_2024",
+    "document_id": "doc_budget_q1_2025",
     "filename": "Q1_Budget.xlsx",
     "description": "Budget spreadsheet with cost estimates"
 })

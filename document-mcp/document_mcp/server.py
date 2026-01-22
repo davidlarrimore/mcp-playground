@@ -11,7 +11,6 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from docx import Document
 from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from weasyprint import HTML, CSS
 
 # Add parent directory to path for shared module
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -52,7 +51,17 @@ def _with_download_metadata(output_path: Path, message: str, extra: Optional[dic
         result.update(extra)
 
     try:
+        logger.info(
+            "Generating signed URL",
+            extra={
+                "path": str(output_path),
+                "download_filename": download_filename,
+                "download_base_url": os.getenv("DOWNLOAD_BASE_URL"),
+            },
+        )
+
         download_info = generate_signed_url(str(output_path), filename=download_filename)
+        logger.info("Signed URL generated", extra={"url": download_info.get("url"), "expires_in": download_info.get("expires_in")})
         expires_hours = download_info["expires_in"] // 3600
         result.update({
             "download_url": download_info["url"],
@@ -61,7 +70,7 @@ def _with_download_metadata(output_path: Path, message: str, extra: Optional[dic
             "message": f"{message}\n\n📥 Download your file:\n{download_info['url']}\n\n⏰ Link expires in {expires_hours} hours"
         })
     except Exception as e:
-        logger.error(f"Error generating download URL: {e}")
+        logger.error("Error generating download URL", exc_info=e, extra={"path": str(output_path)})
 
     return result
 
@@ -309,6 +318,9 @@ async def create_pdf_from_html(
         output_filename: Name of output PDF file
         css: Optional CSS stylesheet content for styling
     """
+    # Lazy import so environments without system deps for WeasyPrint can still run other tools
+    from weasyprint import HTML, CSS
+
     output_path = WORKSPACE / output_filename
 
     # Treat html_content as inline HTML if it clearly contains markup or if checking
